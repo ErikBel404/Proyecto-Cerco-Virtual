@@ -26,7 +26,15 @@ if os.path.exists(POSTGRES_DIR):
     if hasattr(os, 'add_dll_directory'):
         os.add_dll_directory(BIN_DIR)
 
+    # Catálogo de datos GDAL
     os.environ['GDAL_DATA'] = os.path.join(POSTGRES_DIR, 'gdal-data')
+
+    # Ruta exacta a la base de datos de proyecciones (PROJ)
+    PROJ_PATH = os.path.join(POSTGRES_DIR, 'share', 'contrib', 'postgis-3.6', 'proj')
+    os.environ['PROJ_LIB'] = PROJ_PATH
+    os.environ['PROJ_DATA'] = PROJ_PATH
+
+    # Binarios nativos GDAL y GEOS
     GDAL_LIBRARY_PATH = os.path.join(BIN_DIR, 'libgdal-35.dll')
     GEOS_LIBRARY_PATH = os.path.join(BIN_DIR, 'libgeos_c.dll')
     
@@ -61,6 +69,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.gis',
+    'cercos',
 ]
 
 MIDDLEWARE = [
