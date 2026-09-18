@@ -8,6 +8,6 @@ urlpatterns = [
     # Endpoints de comunicación (API liviana para Leaflet)
     path('api/cercos/', views.obtener_cercos, name='obtener_cercos'),
     path('api/cercos/crear/', views.crear_cerco, name='crear_cerco'),
-    path('api/cercos/<int:cerco_id>/editar/', views.editar_cerco, name='editar_cerco'),
-    path('api/cercos/<int:cerco_id>/eliminar/', views.eliminar_cerco, name='eliminar_cerco'),
+    path('api/cercos/<int:id_cerco>/editar/', views.editar_cerco, name='editar_cerco'),
+    path('api/cercos/<int:id_cerco>/eliminar/', views.eliminar_cerco, name='eliminar_cerco'),
 ]
