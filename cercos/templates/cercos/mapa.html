@@ -1,218 +1,194 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmartHerd - Gestión de Cercos Virtuales</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Hoja de estilos de Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        campo: {
-                            900: '#14231a',
-                            800: '#1a2f23',
-                            700: '#233329',
-                            500: '#27ae60',
-                            400: '#2ecc71',
-                            100: '#eef9f2',
-                            50: '#f4f6f5'
-                        }
-                    }
-                }
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              campo: {
+                900: '#14231a',
+                800: '#1a2f23',
+                700: '#233329',
+                500: '#27ae60',
+                400: '#2ecc71',
+                100: '#eef9f2',
+                50: '#f4f6f5'
+              }
             }
+          }
         }
+      }
     </script>
-</head>
-<body class="flex flex-col h-screen overflow-hidden bg-campo-700 text-slate-800 antialiased">
-
+  </head>
+  <body class="flex flex-col h-screen overflow-hidden bg-campo-700 text-slate-800 antialiased">
     <!-- Encabezado Superior -->
     <header class="bg-campo-800 text-white px-6 py-3 flex items-center justify-between shadow-md z-10">
-        <div class="text-xl font-bold flex items-center gap-2">
-            🌱 Smart<span class="text-campo-400">Herd</span>
-        </div>
-        <nav>
-            <ul class="flex items-center gap-6 text-sm font-medium text-slate-300">
-                <li><a href="#" class="hover:text-campo-400 transition-colors">Estancias</a></li>
-                <li><a href="#" class="hover:text-campo-400 transition-colors">Ganado</a></li>
-                <li><a href="#" class="hover:text-campo-400 transition-colors">Collares</a></li>
-                <li><a href="#" class="hover:text-campo-400 transition-colors">Telemetría</a></li>
-                <li><a href="#" class="hover:text-campo-400 transition-colors">Alertas</a></li>
-                <li><a href="#" class="text-campo-400 border-b-2 border-campo-400 pb-0.5 font-semibold">Cerco Virtual</a></li>
-            </ul>
-        </nav>
-        <div class="flex items-center gap-4 text-xs text-slate-300">
-            <span class="bg-campo-900 px-3 py-1.5 rounded-full border border-emerald-800/60">Operador Activo</span>
-        </div>
+      <div class="text-xl font-bold flex items-center gap-2">
+        🌱 Smart<span class="text-campo-400">Herd</span>
+      </div>
+      <nav>
+        <ul class="flex items-center gap-6 text-sm font-medium text-slate-300">
+          <li>
+            <a href="#" class="hover:text-campo-400 transition-colors">Estancias</a>
+          </li>
+          <li>
+            <a href="#" class="hover:text-campo-400 transition-colors">Ganado</a>
+          </li>
+          <li>
+            <a href="#" class="hover:text-campo-400 transition-colors">Collares</a>
+          </li>
+          <li>
+            <a href="#" class="hover:text-campo-400 transition-colors">Telemetría</a>
+          </li>
+          <li>
+            <a href="#" class="hover:text-campo-400 transition-colors">Alertas</a>
+          </li>
+          <li>
+            <a href="#" class="text-campo-400 border-b-2 border-campo-400 pb-0.5 font-semibold">Cerco Virtual</a>
+          </li>
+        </ul>
+      </nav>
+      <div class="flex items-center gap-4 text-xs text-slate-300">
+        <span class="bg-campo-900 px-3 py-1.5 rounded-full border border-emerald-800/60">Operador Activo</span>
+      </div>
     </header>
 
     <!-- Contenedor Principal de la Interfaz -->
     <div class="flex flex-1 relative overflow-hidden">
-        
-        <!-- Panel Lateral de Operaciones -->
-        <aside class="w-96 bg-white border-r border-slate-200 flex flex-col justify-between p-6 shadow-lg z-10 overflow-y-auto">
-            
-            <!-- PANEL 1: VISTA GENERAL -->
-            <div id="panel-general" class="vista-panel flex flex-col gap-5">
-                <div>
-                    <h2 class="text-xl font-bold text-slate-800">Gestión de Cercos</h2>
-                    <p class="text-xs text-slate-500 mt-1">Seleccione una acción para administrar los lotes y perímetros del campo.</p>
-                </div>
+      <!-- Panel Lateral de Operaciones -->
+      <aside class="w-96 bg-white border-r border-slate-200 flex flex-col justify-between p-6 shadow-lg z-10 overflow-y-auto">
+        <!-- PANEL 1: VISTA GENERAL -->
+        <div id="panel-general" class="vista-panel flex flex-col gap-5">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">Gestión de Cercos</h2>
+            <p class="text-xs text-slate-500 mt-1">Seleccione una acción para administrar los lotes y perímetros del campo.</p>
+          </div>
 
-                <div class="flex flex-col gap-3 mt-2">
-                    <button onclick="cambiarModo('crear')" class="w-full flex items-center gap-3 px-4 py-3.5 bg-white border border-slate-200 rounded-lg font-semibold text-sm text-slate-700 shadow-sm hover:border-campo-400 hover:bg-campo-50/50 hover:text-slate-900 transition-all">
-                        <span class="text-lg">➕</span> Crear Cerco
-                    </button>
-                    <button onclick="cambiarModo('modificar')" class="w-full flex items-center gap-3 px-4 py-3.5 bg-white border border-slate-200 rounded-lg font-semibold text-sm text-slate-700 shadow-sm hover:border-campo-400 hover:bg-campo-50/50 hover:text-slate-900 transition-all">
-                        <span class="text-lg">✏️</span> Modificar Cerco
-                    </button>
-                    <button onclick="cambiarModo('eliminar')" class="w-full flex items-center gap-3 px-4 py-3.5 bg-white border border-slate-200 rounded-lg font-semibold text-sm text-red-600 shadow-sm hover:border-red-400 hover:bg-red-50/60 transition-all">
-                        <span class="text-lg">🗑️</span> Eliminar Cerco
-                    </button>
-                </div>
+          <div class="flex flex-col gap-3 mt-2">
+            <button onclick="cambiarModo('crear')" class="w-full flex items-center gap-3 px-4 py-3.5 bg-white border border-slate-200 rounded-lg font-semibold text-sm text-slate-700 shadow-sm hover:border-campo-400 hover:bg-campo-50/50 hover:text-slate-900 transition-all"><span class="text-lg">➕</span> Crear Cerco</button>
+            <button onclick="cambiarModo('modificar')" class="w-full flex items-center gap-3 px-4 py-3.5 bg-white border border-slate-200 rounded-lg font-semibold text-sm text-slate-700 shadow-sm hover:border-campo-400 hover:bg-campo-50/50 hover:text-slate-900 transition-all"><span class="text-lg">✏️</span> Modificar Cerco</button>
+            <button onclick="cambiarModo('eliminar')" class="w-full flex items-center gap-3 px-4 py-3.5 bg-white border border-slate-200 rounded-lg font-semibold text-sm text-red-600 shadow-sm hover:border-red-400 hover:bg-red-50/60 transition-all"><span class="text-lg">🗑️</span> Eliminar Cerco</button>
+          </div>
 
-                <div class="mt-8 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
-                    <span class="w-2.5 h-2.5 rounded-full bg-campo-400 inline-block animate-pulse"></span>
-                    Base de datos espacial PostGIS sincronizada
-                </div>
+          <div class="mt-8 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
+            <span class="w-2.5 h-2.5 rounded-full bg-campo-400 inline-block animate-pulse"></span>
+            Base de datos espacial PostGIS sincronizada
+          </div>
+        </div>
+
+        <!-- PANEL 2: CREACIÓN DE CERCO (RF_1) -->
+        <div id="panel-crear" class="vista-panel hidden flex-col gap-4">
+          <div>
+            <button onclick="cancelarOperacion()" class="text-xs font-semibold text-slate-400 hover:text-slate-600 mb-1 flex items-center gap-1">← Volver al menú</button>
+            <h2 class="text-lg font-bold text-slate-800">Crear Nuevo Cerco</h2>
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-bold text-slate-600 uppercase tracking-wide">Nombre del Lote</label>
+            <input type="text" id="campo-nuevo-nombre" placeholder="Ej: Lote Norte" class="w-full px-3 py-2.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:border-campo-500 focus:ring-1 focus:ring-campo-500" />
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <label class="text-xs font-bold text-slate-600 uppercase tracking-wide">Color de Identificación</label>
+            <div class="flex items-center gap-3 pt-1">
+              <div class="circulo-color w-7 h-7 rounded-full cursor-pointer transition-all border-2 border-transparent scale-125 ring-2 ring-slate-800" style="background:#2ecc71;" data-color="#2ecc71" onclick="elegirColor(this)"></div>
+              <div class="circulo-color w-7 h-7 rounded-full cursor-pointer transition-all border-2 border-transparent" style="background:#3498db;" data-color="#3498db" onclick="elegirColor(this)"></div>
+              <div class="circulo-color w-7 h-7 rounded-full cursor-pointer transition-all border-2 border-transparent" style="background:#e67e22;" data-color="#e67e22" onclick="elegirColor(this)"></div>
+              <div class="circulo-color w-7 h-7 rounded-full cursor-pointer transition-all border-2 border-transparent" style="background:#9b59b6;" data-color="#9b59b6" onclick="elegirColor(this)"></div>
+              <div class="circulo-color w-7 h-7 rounded-full cursor-pointer transition-all border-2 border-transparent" style="background:#1abc9c;" data-color="#1abc9c" onclick="elegirColor(this)"></div>
             </div>
+          </div>
 
-            <!-- PANEL 2: CREACIÓN DE CERCO (RF_1) -->
-            <div id="panel-crear" class="vista-panel hidden flex-col gap-4">
-                <div>
-                    <button onclick="cancelarOperacion()" class="text-xs font-semibold text-slate-400 hover:text-slate-600 mb-1 flex items-center gap-1">
-                        ← Volver al menú
-                    </button>
-                    <h2 class="text-lg font-bold text-slate-800">Crear Nuevo Cerco</h2>
-                </div>
+          <div class="bg-campo-100 border-l-4 border-campo-500 p-3 rounded-r text-xs text-campo-900 leading-relaxed mt-2">
+            <strong class="font-semibold block mb-0.5">Modo trazado perimetral:</strong>
+            Haga clics consecutivos sobre el mapa satelital para ubicar cada vértice.
+          </div>
 
-                <div class="flex flex-col gap-1.5">
-                    <label class="text-xs font-bold text-slate-600 uppercase tracking-wide">Nombre del Lote</label>
-                    <input type="text" id="campo-nuevo-nombre" placeholder="Ej: Lote Norte" class="w-full px-3 py-2.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:border-campo-500 focus:ring-1 focus:ring-campo-500">
-                </div>
+          <div class="flex flex-col gap-2.5 mt-4">
+            <button onclick="guardarNuevoCerco()" class="w-full py-2.5 px-4 bg-campo-500 hover:bg-emerald-600 text-white font-semibold text-sm rounded-md shadow-sm transition-colors">Guardar Cerco</button>
+            <button onclick="cancelarOperacion()" class="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-sm rounded-md border border-slate-200 transition-colors">Cancelar</button>
+          </div>
+        </div>
 
-                <div class="flex flex-col gap-2">
-                    <label class="text-xs font-bold text-slate-600 uppercase tracking-wide">Color de Identificación</label>
-                    <div class="flex items-center gap-3 pt-1">
-                        <div class="circulo-color w-7 h-7 rounded-full cursor-pointer transition-all border-2 border-transparent scale-125 ring-2 ring-slate-800" style="background:#2ecc71;" data-color="#2ecc71" onclick="elegirColor(this)"></div>
-                        <div class="circulo-color w-7 h-7 rounded-full cursor-pointer transition-all border-2 border-transparent" style="background:#3498db;" data-color="#3498db" onclick="elegirColor(this)"></div>
-                        <div class="circulo-color w-7 h-7 rounded-full cursor-pointer transition-all border-2 border-transparent" style="background:#e67e22;" data-color="#e67e22" onclick="elegirColor(this)"></div>
-                        <div class="circulo-color w-7 h-7 rounded-full cursor-pointer transition-all border-2 border-transparent" style="background:#9b59b6;" data-color="#9b59b6" onclick="elegirColor(this)"></div>
-                        <div class="circulo-color w-7 h-7 rounded-full cursor-pointer transition-all border-2 border-transparent" style="background:#1abc9c;" data-color="#1abc9c" onclick="elegirColor(this)"></div>
-                    </div>
-                </div>
+        <!-- PANEL 3: MODIFICACIÓN DE CERCO (RF_2) -->
+        <div id="panel-modificar" class="vista-panel hidden flex-col gap-4">
+          <div>
+            <!-- Vuelve al menú principal -->
+            <button onclick="volverAlMenu()" class="text-xs font-semibold text-slate-400 hover:text-slate-600 mb-1 flex items-center gap-1">← Volver al menú</button>
+            <h2 class="text-lg font-bold text-slate-800">Modificar Cerco</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Seleccione un lote de la lista para editar.</p>
+          </div>
 
-                <div class="bg-campo-100 border-l-4 border-campo-500 p-3 rounded-r text-xs text-campo-900 leading-relaxed mt-2">
-                    <strong class="font-semibold block mb-0.5">Modo trazado perimetral:</strong>
-                    Haga clics consecutivos sobre el mapa satelital para ubicar cada vértice.
-                </div>
+          <!-- Buscador interactivo de lotes -->
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400 text-xs">🔍</span>
+            <input type="text" id="campo-buscar-modificar" placeholder="Buscar lote por nombre..." oninput="filtrarListaModificacion()" class="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-md focus:outline-none focus:border-campo-500 focus:ring-1 focus:ring-campo-500 placeholder-slate-400" />
+          </div>
 
-                <div class="flex flex-col gap-2.5 mt-4">
-                    <button onclick="guardarNuevoCerco()" class="w-full py-2.5 px-4 bg-campo-500 hover:bg-emerald-600 text-white font-semibold text-sm rounded-md shadow-sm transition-colors">
-                        Guardar Cerco
-                    </button>
-                    <button onclick="cancelarOperacion()" class="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-sm rounded-md border border-slate-200 transition-colors">
-                        Cancelar
-                    </button>
-                </div>
-            </div>
+          <!-- Contenedor scrollable de tarjetas -->
+          <div class="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1" id="contenedor-lista-modificar"></div>
 
-            <!-- PANEL 3: MODIFICACIÓN DE CERCO (RF_2) -->
-            <div id="panel-modificar" class="vista-panel hidden flex-col gap-4">
-                <div>
-                    <!-- Vuelve al menú principal -->
-                    <button onclick="volverAlMenu()" class="text-xs font-semibold text-slate-400 hover:text-slate-600 mb-1 flex items-center gap-1">
-                        ← Volver al menú
-                    </button>
-                    <h2 class="text-lg font-bold text-slate-800">Modificar Cerco</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Seleccione un lote de la lista para editar.</p>
-                </div>
+          <div id="grupo-editar-nombre" class="hidden flex-col gap-1.5 pt-2 border-t border-slate-100">
+            <label class="text-xs font-bold text-slate-600 uppercase tracking-wide">Editar Nombre</label>
+            <input type="text" id="campo-editar-nombre" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:border-campo-500 focus:ring-1 focus:ring-campo-500" />
+          </div>
 
-                <!-- Buscador interactivo de lotes -->
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400 text-xs">
-                        🔍
-                    </span>
-                    <input 
-                        type="text" 
-                        id="campo-buscar-modificar" 
-                        placeholder="Buscar lote por nombre..." 
-                        oninput="filtrarListaModificacion()"
-                        class="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-md focus:outline-none focus:border-campo-500 focus:ring-1 focus:ring-campo-500 placeholder-slate-400"
-                    >
-                </div>
+          <div id="aviso-modificar" class="hidden bg-campo-100 border-l-4 border-campo-500 p-3 rounded-r text-xs text-campo-900 leading-relaxed">
+            <strong class="font-semibold block mb-0.5">Modo edición activo:</strong>
+            Arrastre los vértices en el mapa para ajustar la forma del cerco.
+          </div>
 
-                <!-- Contenedor scrollable de tarjetas -->
-                <div class="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1" id="contenedor-lista-modificar"></div>
+          <div class="flex flex-col gap-2.5 mt-2">
+            <button id="boton-guardar-cambios" onclick="guardarModificacion()" class="hidden w-full py-2.5 px-4 bg-campo-500 hover:bg-emerald-600 text-white font-semibold text-sm rounded-md shadow-sm transition-colors">Guardar Cambios</button>
+            <!-- Agregamos id="boton-descartar-cambios" y la clase "hidden" -->
+            <button id="boton-descartar-cambios" onclick="descartarModificacion()" class="hidden w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-sm rounded-md border border-slate-200 transition-colors">Descartar Cambios</button>
+          </div>
+        </div>
 
-                <div id="grupo-editar-nombre" class="hidden flex-col gap-1.5 pt-2 border-t border-slate-100">
-                    <label class="text-xs font-bold text-slate-600 uppercase tracking-wide">Editar Nombre</label>
-                    <input type="text" id="campo-editar-nombre" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:border-campo-500 focus:ring-1 focus:ring-campo-500">
-                </div>
+        <!-- PANEL 4: ELIMINACIÓN DE CERCO (RF_8) -->
+        <div id="panel-eliminar" class="vista-panel hidden flex-col gap-4">
+          <div>
+            <!-- Este botón superior sí te regresa al menú principal -->
+            <button onclick="cancelarOperacion()" class="text-xs font-semibold text-slate-400 hover:text-slate-600 mb-1 flex items-center gap-1">← Volver al menú</button>
+            <h2 class="text-lg font-bold text-slate-800">Eliminar Cerco</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Seleccione el lote que desea remover del sistema.</p>
+          </div>
 
-                <div id="aviso-modificar" class="hidden bg-campo-100 border-l-4 border-campo-500 p-3 rounded-r text-xs text-campo-900 leading-relaxed">
-                    <strong class="font-semibold block mb-0.5">Modo edición activo:</strong>
-                    Arrastre los vértices en el mapa para ajustar la forma del cerco.
-                </div>
+          <div class="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1" id="contenedor-lista-eliminar"></div>
 
-                <div class="flex flex-col gap-2.5 mt-2">
-                    <button id="boton-guardar-cambios" onclick="guardarModificacion()" class="hidden w-full py-2.5 px-4 bg-campo-500 hover:bg-emerald-600 text-white font-semibold text-sm rounded-md shadow-sm transition-colors">
-                        Guardar Cambios
-                    </button>
-                    <button onclick="descartarModificacion()" class="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-sm rounded-md border border-slate-200 transition-colors">
-                        Descartar Cambios
-                    </button>
-                </div>
-            </div>
+          <div id="aviso-eliminar" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r text-xs text-red-900 leading-relaxed mt-2">
+            <strong class="font-semibold block mb-0.5">⚠️ Acción permanente</strong>
+            Se desvinculará este cerco perimetral de forma definitiva en la base de datos.
+          </div>
 
-            <!-- PANEL 4: ELIMINACIÓN DE CERCO (RF_8) -->
-            <div id="panel-eliminar" class="vista-panel hidden flex-col gap-4">
-                <div>
-                    <button onclick="cancelarOperacion()" class="text-xs font-semibold text-slate-400 hover:text-slate-600 mb-1 flex items-center gap-1">
-                        ← Volver al menú
-                    </button>
-                    <h2 class="text-lg font-bold text-slate-800">Eliminar Cerco</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Seleccione el lote que desea remover del sistema.</p>
-                </div>
+          <div class="flex flex-col gap-2.5 mt-2">
+            <button id="boton-confirmar-eliminar" onclick="ejecutarEliminacion()" class="hidden w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-md shadow-sm transition-colors">Confirmar Eliminación</button>
+            <!-- Agregamos id="boton-cancelar-eliminar", la clase "hidden" y onclick="cancelarEliminacion()" -->
+            <button id="boton-cancelar-eliminar" onclick="cancelarEliminacion()" class="hidden w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-sm rounded-md border border-slate-200 transition-colors">Cancelar</button>
+          </div>
+        </div>
+      </aside>
 
-                <div class="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1" id="contenedor-lista-eliminar"></div>
-
-                <div id="aviso-eliminar" class="hidden bg-red-50 border-l-4 border-red-500 p-3 rounded-r text-xs text-red-900 leading-relaxed mt-2">
-                    <strong class="font-semibold block mb-0.5">⚠️ Acción permanente</strong>
-                    Se desvinculará este cerco perimetral de forma definitiva en la base de datos.
-                </div>
-
-                <div class="flex flex-col gap-2.5 mt-2">
-                    <button id="boton-confirmar-eliminar" onclick="ejecutarEliminacion()" class="hidden w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-md shadow-sm transition-colors">
-                        Confirmar Eliminación
-                    </button>
-                    <button onclick="cancelarOperacion()" class="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-sm rounded-md border border-slate-200 transition-colors">
-                        Cancelar
-                    </button>
-                </div>
-            </div>
-
-        </aside>
-
-        <!-- Visor Cartográfico Leaflet -->
-        <main id="visor-mapa" class="flex-1 h-full w-full bg-slate-200 z-0"></main>
+      <!-- Visor Cartográfico Leaflet -->
+      <main id="visor-mapa" class="flex-1 h-full w-full bg-slate-200 z-0"></main>
     </div>
 
     <!-- Pie de Página -->
-    <footer class="bg-campo-900 text-slate-400 text-xs py-2 text-center border-t border-emerald-950">
-        © 2026 SmartHerd - Sistema de Monitoreo y Gestión Ganadera Inteligente
-    </footer>
+    <footer class="bg-campo-900 text-slate-400 text-xs py-2 text-center border-t border-emerald-950">© 2026 SmartHerd - Sistema de Monitoreo y Gestión Ganadera Inteligente</footer>
 
     <!-- Script de Leaflet -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <!-- Script modular de gestión de cercos -->
-    <script src="{% static 'cercos/mapa.js' %}"></script>
-
-</body>
+    <script src="{% static 'cercos/mapa.js' %}?v=3"></script>
+  </body>
 </html>
