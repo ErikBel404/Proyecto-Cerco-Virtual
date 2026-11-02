@@ -1,0 +1,48 @@
+<!-- SECCIÓN 3: SIMULADOR E INGESTA DE TELEMETRÍA GPS (RF_3, RF_4) -->
+<div id="seccion-telemetria" class="seccion-principal hidden flex-col gap-4 h-full justify-between">
+  <div class="flex flex-col gap-4">
+    <div>
+      <h2 class="text-lg font-bold text-slate-800">Telemetría GPS en Vivo</h2>
+      <p class="text-xs text-slate-500 mt-0.5">
+        Simule el envío de coordenadas desde un collar IoT o mueva un animal haciendo clic en el mapa para evaluar <code>ST_Contains</code> en PostGIS.
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label class="text-xs font-bold text-slate-600 uppercase tracking-wide">1. Seleccionar Animal / Collar</label>
+      <select id="telemetria-select-animal" onchange="seleccionarAnimalTelemetria()" class="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-md bg-white focus:outline-none focus:border-campo-500">
+        <option value="">-- Seleccione un animal --</option>
+      </select>
+    </div>
+
+    <div class="bg-emerald-50 border-l-4 border-campo-500 p-3 rounded-r text-xs text-campo-900 leading-relaxed">
+      <strong class="font-semibold block mb-1">🎯 Simulación Interactiva sobre el Mapa:</strong>
+      Con un animal seleccionado arriba, <strong>haga clic en cualquier punto del mapa satelital</strong> (dentro o fuera de su lote) o arrastre el marcador de la vaca para enviar esa coordenada GPS al servidor en tiempo real.
+    </div>
+
+    <div class="flex flex-col gap-2.5 p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
+      <span class="text-xs font-bold text-slate-700 uppercase">Envío Manual de Trama GPS</span>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-[11px] font-semibold text-slate-600">Latitud</label>
+          <input type="number" step="any" id="telemetria-input-lat" placeholder="-28.4670" class="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:border-campo-500" />
+        </div>
+        <div>
+          <label class="text-[11px] font-semibold text-slate-600">Longitud</label>
+          <input type="number" step="any" id="telemetria-input-lng" placeholder="-65.7875" class="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:border-campo-500" />
+        </div>
+      </div>
+      <button onclick="enviarTelemetriaManual()" class="w-full py-2 bg-campo-500 hover:bg-emerald-600 text-white font-semibold text-xs rounded shadow-sm transition-colors">
+        📡 Transmitir Posición a PostGIS
+      </button>
+    </div>
+
+    <!-- Resultado de la última evaluación espacial -->
+    <div id="resultado-telemetria-box" class="hidden flex-col gap-1.5 p-3 rounded-lg border text-xs"></div>
+  </div>
+
+  <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500">
+    Endpoint IoT Gateway: <code>POST /api/telemetria/procesar/</code>
+  </div>
+</div>
+

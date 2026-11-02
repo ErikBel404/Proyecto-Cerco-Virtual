@@ -1,0 +1,34 @@
+<!-- SECCIÓN 4: CENTRO DE MONITOREO DE FUGAS / ANIMALES PRÓFUGOS (RF_5, RF_6, RF_7) -->
+<div id="seccion-alertas" class="seccion-principal hidden flex-col gap-4 h-full justify-between">
+  <div class="flex flex-col gap-3.5">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold text-slate-800">Animales Prófugos</h2>
+        <p class="text-xs text-slate-500">Monitoreo en tiempo real de ganado fuera del perímetro cercado.</p>
+      </div>
+      <button onclick="cargarAlertasYProfugos()" title="Actualizar listado" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded border border-slate-200">
+        🔄
+      </button>
+    </div>
+
+    <!-- Listado de animales con estado_fuga = True (RF_6 y RF_7) -->
+    <div>
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-xs font-bold text-red-700 uppercase tracking-wide">🚨 Fuera del Perímetro Ahora</span>
+        <span id="contador-profugos-panel" class="text-xs font-bold text-red-600">0</span>
+      </div>
+      <div id="contenedor-lista-profugos" class="flex flex-col gap-2.5 max-h-60 overflow-y-auto pr-1"></div>
+    </div>
+
+    <!-- Historial reciente de Alertas Emitidas (RF_5) -->
+    <div class="pt-3 border-t border-slate-200">
+      <span class="text-xs font-bold text-slate-600 uppercase tracking-wide block mb-2">Bitácora de Incidentes Activos</span>
+      <div id="contenedor-historial-alertas" class="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1"></div>
+    </div>
+  </div>
+
+  <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500">
+    🛡️ Anti-Spam: 5 min en lotes internos · 🚨 Continua sin espera en Perímetros Críticos.
+  </div>
+</div>
+

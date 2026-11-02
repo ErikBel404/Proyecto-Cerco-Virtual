@@ -1,0 +1,55 @@
+<!-- SECCIÓN 2: GESTIÓN DE GANADO Y PERTENENCIA A CERCOS (RF-08, RF-09, RF-10) -->
+<div id="seccion-ganado" class="seccion-principal hidden flex-col gap-4 h-full justify-between">
+  <div class="flex flex-col gap-3.5">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold text-slate-800">Ganado y Asignación</h2>
+        <p class="text-xs text-slate-500">Asigne, cambie o desvincule animales de sus cercos virtuales.</p>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <a href="/admin/cercos/animal/" target="_blank" title="Dar de alta o baja animales en Django Admin" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-md border border-slate-300 transition-colors">
+          ⚙️ Admin
+        </a>
+        <!-- Botón visible ÚNICAMENTE cuando se activa el Modo Simulación -->
+        <button id="boton-nuevo-animal-panel" onclick="alternarFormularioNuevoAnimal()" class="hidden px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs rounded-md shadow-sm transition-colors">
+          + Nuevo (Sim)
+        </button>
+      </div>
+    </div>
+
+    <!-- Formulario colapsable de Alta Rápida (Exclusivo para Modo Simulación) -->
+    <div id="formulario-nuevo-animal" class="hidden flex-col gap-2.5 p-3.5 bg-amber-50/70 border border-amber-200 rounded-lg">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-amber-900 uppercase">🧪 Registrar Animal (Simulación)</span>
+        <button onclick="alternarFormularioNuevoAnimal()" class="text-xs text-slate-400 hover:text-slate-600">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <input type="text" id="nuevo-animal-hardware" placeholder="ID Collar (Ej: COLLAR-105)" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:border-campo-500" />
+        <input type="text" id="nuevo-animal-nombre" placeholder="Nombre (Ej: Vaca #105)" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:border-campo-500" />
+      </div>
+      <select id="nuevo-animal-cerco" class="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:border-campo-500">
+        <option value="">-- Dejar sin cerco asignado inicialmente --</option>
+      </select>
+      <button id="boton-guardar-nuevo-animal" onclick="guardarNuevoAnimal()" class="w-full py-2 bg-campo-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-xs rounded transition-colors">
+        Guardar Animal en Base de Datos
+      </button>
+    </div>
+
+    <!-- Filtros por Cerco (Maestro -> Detalle según Pág. 7 del PDF) -->
+    <div class="flex flex-col gap-2">
+      <label class="text-[11px] font-bold text-slate-600 uppercase tracking-wide">Filtrar por Cerco / Estado</label>
+      <select id="filtro-cerco-ganado" onchange="renderizarListaGanado()" class="w-full px-2.5 py-2 text-xs font-medium border border-slate-300 rounded-md bg-white focus:outline-none focus:border-campo-500">
+        <option value="todos">📋 Todos los animales registrados</option>
+        <option value="sin_cerco">⚪ Animales sin cerco asignado (RF-08)</option>
+      </select>
+      <input type="text" id="buscador-ganado" oninput="renderizarListaGanado()" placeholder="🔍 Buscar por ID de collar o nombre..." class="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-none focus:border-campo-500" />
+    </div>
+
+    <!-- Lista de tarjetas de animales -->
+    <div id="contenedor-lista-ganado" class="flex flex-col gap-2.5 max-h-[420px] overflow-y-auto pr-1"></div>
+  </div>
+
+  <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500">
+    💡 El alta y baja de animales se realiza desde <strong>⚙️ Padrón en Admin</strong> (o la base de datos). Desde aquí solo se asigna o desvincula su cerco virtual.
+  </div>
+</div>

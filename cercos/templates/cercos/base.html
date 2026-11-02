@@ -1,0 +1,126 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}SmartHerd - Gestión de Cercos Virtuales y Monitoreo Ganadero{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Hoja de estilos de Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              campo: {
+                900: '#14231a',
+                800: '#1a2f23',
+                700: '#233329',
+                500: '#27ae60',
+                400: '#2ecc71',
+                100: '#eef9f2',
+                50: '#f4f6f5'
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @keyframes pulsoFuga {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+        50% { transform: scale(1.12); box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+      }
+      .marcador-fuga-pulso {
+        animation: pulsoFuga 1.6s infinite;
+      }
+    </style>
+  </head>
+  <body class="flex flex-col h-screen overflow-hidden bg-campo-700 text-slate-800 antialiased">
+    <!-- Contenedor Transversal de Notificaciones Toast (RF_5: Emisión de Alertas) -->
+    <div id="contenedor-toasts" class="fixed top-16 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- Encabezado Superior -->
+    <header class="bg-campo-800 text-white px-6 py-2.5 flex items-center justify-between shadow-md z-20 border-b border-emerald-900/60">
+      <div class="flex items-center gap-3">
+        <div class="text-xl font-bold flex items-center gap-2 tracking-tight">
+          🌱 Smart<span class="text-campo-400">Herd</span>
+        </div>
+        <span class="hidden md:inline-block text-[11px] bg-campo-900/80 text-emerald-300 px-2.5 py-0.5 rounded border border-emerald-800/60">
+          UNCA · GeoDjango + PostGIS
+        </span>
+      </div>
+
+      <nav>
+        <ul class="flex items-center gap-2 sm:gap-5 text-sm font-medium text-slate-300">
+          <li>
+            <button id="nav-cercos" onclick="cambiarSeccionPrincipal('cercos')" class="nav-tab text-campo-400 border-b-2 border-campo-400 pb-1 px-2 font-semibold transition-all">
+              🗺️ Cerco Virtual
+            </button>
+          </li>
+          <li>
+            <button id="nav-ganado" onclick="cambiarSeccionPrincipal('ganado')" class="nav-tab hover:text-campo-400 pb-1 px-2 transition-all flex items-center gap-1.5">
+              🐄 Ganado y Asignación
+              <span id="badge-total-ganado" class="bg-campo-900 text-slate-300 text-[11px] px-1.5 py-0.2 rounded-full border border-slate-700">0</span>
+            </button>
+          </li>
+          <li id="item-nav-telemetria" class="hidden">
+            <button id="nav-telemetria" onclick="cambiarSeccionPrincipal('telemetria')" class="nav-tab hover:text-amber-300 text-amber-200 pb-1 px-2 transition-all">
+              🧪 Simulador GPS
+            </button>
+          </li>
+          <li>
+            <button id="nav-alertas" onclick="cambiarSeccionPrincipal('alertas')" class="nav-tab hover:text-red-400 pb-1 px-2 transition-all flex items-center gap-1.5">
+              🚨 Alertas / Prófugos
+              <span id="badge-profugos" class="hidden bg-red-600 text-white text-[11px] font-bold px-2 py-0.2 rounded-full animate-pulse">0</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <div class="flex items-center gap-2 text-xs">
+        <!-- Controles exclusivos del Modo Simulación (ocultos en Modo Real Node-RED) -->
+        <div id="controles-demo-simulacion" class="hidden items-center gap-1.5">
+          <button id="boton-cargar-demo" onclick="cargarEscenarioDemo()" title="Cargar lotes y vacas de demostración en la ubicación base actual" class="bg-emerald-900/80 hover:bg-emerald-800 disabled:opacity-50 text-emerald-200 px-2.5 py-1 rounded-full border border-emerald-700/70 transition-colors font-medium">
+            ⚡ Cargar Demo
+          </button>
+          <button id="boton-limpiar-demo" onclick="limpiarEscenarioDemo()" title="Eliminar únicamente los lotes y vacas de la demo" class="bg-slate-800 hover:bg-red-900/70 disabled:opacity-50 text-slate-300 hover:text-red-200 px-2.5 py-1 rounded-full border border-slate-700 transition-colors font-medium">
+            🧹 Limpiar Demo
+          </button>
+        </div>
+
+        <!-- Selector Modo Real (Node-RED / Supabase) vs Modo Simulación (Pruebas) -->
+        <button id="boton-modo-operacion" onclick="alternarModoSimulacion()" title="Alternar entre Modo Real (datos desde Node-RED/Supabase) y Modo Simulación (pruebas manuales)" class="bg-campo-900 hover:bg-slate-800 text-emerald-300 px-3 py-1.5 rounded-full border border-emerald-700/70 transition-all font-semibold flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span id="texto-modo-operacion">📡 Modo Real (Node-RED)</span>
+        </button>
+
+        <a href="/admin/" target="_blank" title="Abrir Django Admin para gestión maestra de animales y collares" class="hidden xl:inline-block bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-full border border-slate-600 transition-colors font-medium">
+          ⚙️ Admin
+        </a>
+      </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    {% block content %}{% endblock %}
+
+    <!-- Pie de Página -->
+    <footer class="bg-campo-900 text-slate-400 text-xs py-1.5 px-6 flex items-center justify-between border-t border-emerald-950 z-20">
+      <span>© 2026 SmartHerd — Sistema de Monitoreo y Gestión Ganadera Inteligente (UNCA / INTA)</span>
+      <span class="hidden sm:inline text-[11px] text-slate-500">Motor Espacial: PostGIS SRID 4326 · Monitoreo Pasivo (RNF_3)</span>
+    </footer>
+
+    <!-- Script de Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Módulos JavaScript desacoplados por responsabilidad para lectura y mantenimiento diario -->
+    <script src="{% static 'cercos/js/estado_y_utilidades.js' %}?v=9"></script>
+    <script src="{% static 'cercos/js/cercos_abm.js' %}?v=9"></script>
+    <script src="{% static 'cercos/js/ganado_pertenencia.js' %}?v=9"></script>
+    <script src="{% static 'cercos/js/telemetria_y_alertas.js' %}?v=9"></script>
+    <script src="{% static 'cercos/js/navegacion_y_modos.js' %}?v=9"></script>
+  </body>
+</html>
+

@@ -1,100 +1,57 @@
-# Proyecto-Cerco-Virtual
+# 🌱 SmartHerd — Sistema de Cercos Virtuales y Monitoreo Ganadero (UNCA)
 
-Este proyecto es una aplicación Django diseñada para la gestión de cercos virtuales. A continuación, se detallan los pasos necesarios para configurar el entorno de desarrollo local.
+Aplicación web geoespacial desarrollada con **Django 6.1 + GeoDjango + PostGIS + Leaflet.js** para la delimitación de potreros/cercos virtuales, asignación de ganado con collares GPS IoT, evaluación espacial en tiempo real (`ST_Contains`) y emisión de alertas de fuga.
 
-## Requisitos Previos
+---
 
-Asegúrate de tener instalado lo siguiente en tu sistema:
+## 📚 Documentación Integral del Proyecto (OpenSpec & Archify)
+
+Toda la arquitectura, especificaciones funcionales y guías de integración se encuentran documentadas en español dentro del repositorio:
+
+1. **Especificaciones Vivas ([`openspec/`](./openspec/AGENTS.md))**:
+   - [`openspec/project.md`](./openspec/project.md): Contexto del proyecto (UNCA), stack y convenciones geoespaciales (`SRID 4326`).
+   - [`01-cercos-virtuales`](./openspec/specs/01-cercos-virtuales/spec.md): Creación, modificación, validación topológica GEOS (sin cruces de líneas) y eliminación de cercos (`RF_1`, `RF_2`, `RF_8`).
+   - [`02-ganado-y-asignacion`](./openspec/specs/02-ganado-y-asignacion/spec.md): Registro de animales/collares y pertenencia a cercos (`RF-08`, `RF-09`, `RF-10`).
+   - [`03-telemetria-y-deteccion`](./openspec/specs/03-telemetria-y-deteccion/spec.md): Ingesta de posiciones GPS y consulta espacial PostGIS `ST_Contains` (`RF_3`, `RF_4`, `RNF_1`).
+   - [`04-alertas-y-profugos`](./openspec/specs/04-alertas-y-profugos/spec.md): Alertas emergentes con ventana Anti-Spam de 5 minutos y panel de animales prófugos (`RF_5`, `RF_6`, `RF_7`).
+
+2. **Documentación Formal Universitaria y Arquitectura Visual ([`docs/`](./docs/archify/README.md))**:
+   - 📄 [**ERS — Especificación de Requisitos de Software**](./docs/ERS_Especificacion_Requisitos.md) (Requerimientos de Usuario, Requisitos Funcionales, No Funcionales y Matriz de Trazabilidad).
+   - 📐 [**SDD — Documento de Diseño del Sistema**](./docs/SDD_Diseno_Sistema.md) (Diagrama Entidad-Relación Espacial, Diagramas de Secuencia y Contratos de API JSON/GeoJSON).
+   - 🏛️ [**Archify — Arquitectura C4 y ADRs**](./docs/archify/README.md):
+     - [Nivel 1: Contexto Ecosistema IoT UNCA / INTA](./docs/archify/01-contexto-iot-unca-inta.md)
+     - [Nivel 2: Contenedores (Leaflet, GeoDjango, Supabase/PostGIS)](./docs/archify/02-contenedores-y-postgis.md)
+     - [Nivel 3: Componentes Internos de la App `cercos`](./docs/archify/03-componentes-django.md)
+   - ☁️ [**Guía Paso a Paso de Supabase (PostgreSQL + PostGIS en la Nube)**](./docs/GUIA_SUPABASE_E_INTEGRACION.md).
+
+---
+
+## 🚀 Requisitos Previos e Instalación Rápida
+
 - **Python 3.10+**
-- **PostgreSQL** con la extensión **PostGIS**
-- **Git**
+- **PostgreSQL 15–18 con extensión PostGIS** (en local o mediante cuenta gratuita en **Supabase**).
 
-## Pasos para la Instalación
-
-### 1. Clonar el Repositorio
-
-Primero, clona este repositorio en tu máquina local:
-
-```bash
-git clone https://github.com/TU_USUARIO/Proyecto-Cerco-Virtual.git
-cd Proyecto-Cerco-Virtual
-```
-
-### 2. Crear un Entorno Virtual
-
-Es recomendable utilizar un entorno virtual para aislar las dependencias del proyecto:
-
-```bash
-# Windows
+### 1. Crear y activar el entorno virtual
+```powershell
 python -m venv venv
 .\venv\Scripts\activate
-
-# Linux / macOS
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 3. Instalar Dependencias
-
-Instala todas las librerías necesarias utilizando el archivo `requirements.txt`:
-
-```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configurar la Base de Datos
-
-El proyecto utiliza **PostgreSQL** con **PostGIS**. Debes crear una base de datos y activar la extensión espacial:
-
-1. Accede a tu terminal de PostgreSQL (`psql`) o utiliza una herramienta como pgAdmin.
-2. Crea la base de datos:
-   ```sql
-   CREATE DATABASE nombre_de_tu_db;
-   ```
-3. Conéctate a la base de datos y activa PostGIS:
-   ```sql
-   \c nombre_de_tu_db;
-   CREATE EXTENSION postgis;
-   ```
-
-### 5. Configurar Variables de Entorno
-
-El proyecto utiliza un archivo `.env` para manejar información sensible. 
-
-1. Localiza el archivo `.env.example` en la raíz del proyecto.
-2. Crea una copia de este archivo y renómbrala a `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-3. Abre el archivo `.env` y completa los campos con tu configuración local:
-
-   - `SECRET_KEY`: Una clave secreta para Django (puedes generar una o poner una temporal).
-   - `DEBUG`: Establécelo en `True` para desarrollo.
-   - `DB_NAME`: El nombre de la base de datos que creaste.
-   - `DB_USER`: Tu usuario de PostgreSQL.
-   - `DB_PASSWORD`: Tu contraseña de PostgreSQL.
-   - `DB_HOST`: Usualmente `localhost`.
-   - `DB_PORT`: Usualmente `5432`.
-
-### 6. Ejecutar Migraciones
-
-Una vez configurada la base de datos y el archivo `.env`, aplica las migraciones de Django:
-
-```bash
-python manage.py migrate
+### 2. Configurar variables de entorno (`.env`)
+Copia `.env.example` a `.env` y completa tus credenciales (locales o de Supabase según la [Guía de Supabase](./docs/GUIA_SUPABASE_E_INTEGRACION.md)):
+```powershell
+copy .env.example .env
 ```
 
-### 7. Iniciar el Servidor de Desarrollo
-
-Finalmente, arranca el servidor:
-
-```bash
+### 3. Aplicar migraciones y levantar el servidor
+```powershell
+python manage.py migrate
 python manage.py runserver
 ```
+Abre `http://127.0.0.1:8000/` en tu navegador. Puedes presionar el botón superior **`⚡ Cargar Demo`** para poblar instantáneamente 2 lotes y 4 animales monitoreados en el Valle Central de Catamarca.
 
-Ahora puedes acceder a la aplicación en `http://127.0.0.1:8000/`.
-
-## Notas Adicionales
-
-- Si tienes problemas con la instalación de `psycopg2-binary`, asegúrate de tener instaladas las herramientas de compilación y las librerías de desarrollo de PostgreSQL en tu sistema operativo.
-- Al usar PostGIS, asegúrate de que las librerías de GDAL/GEOS estén correctamente configuradas en tu sistema si Django no las detecta automáticamente.
+### 4. Ejecutar pruebas automatizadas
+```powershell
+python manage.py test
+```

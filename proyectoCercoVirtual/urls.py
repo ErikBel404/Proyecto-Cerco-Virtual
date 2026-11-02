@@ -1,23 +1,17 @@
 """
-URL configuration for proyectoCercoVirtual project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.1/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+==============================================================================
+ENRUTADOR RAÍZ DEL PROYECTO: proyectoCercoVirtual/urls.py
+==============================================================================
+¿QUÉ HACE ESTE ARCHIVO?
+Es el punto de entrada de todas las URLs del servidor Django.
+1. '/admin/' expone el panel administrativo de GeoDjango (con mapas OpenLayers).
+2. '' delega todas las rutas de interfaz y API REST/GeoJSON a `cercos/urls.py`.
+==============================================================================
 """
 from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('cercos.urls')),  # Enlaza las rutas de la app cercos
+    path('', include('cercos.urls')),
 ]
