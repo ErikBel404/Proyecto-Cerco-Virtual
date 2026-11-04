@@ -15,10 +15,12 @@ funcionen correctamente contra PostgreSQL + PostGIS:
 """
 
 import json
-from django.test import TestCase, Client
+from django.test import TestCase, Client, SimpleTestCase
 from django.urls import reverse
 from django.contrib.gis.geos import Polygon, Point
 from .models import CercoVirtual, Animal, AlertaFuga, TelemetriaGPS
+from channels.testing import WebsocketCommunicator
+from proyectoCercoVirtual.asgi import application
 
 
 class SistemaCercoVirtualTests(TestCase):
@@ -220,4 +222,33 @@ class SistemaCercoVirtualTests(TestCase):
         resp_real_cercos = self.client.get(reverse('obtener_cercos') + '?modo=real').json()
         nombres_cercos = [f['properties']['nombre'] for f in resp_real_cercos['features']]
         self.assertEqual(nombres_cercos, ['Lote Experimental UNCA'])
+        
+        
+class WebSocketPruebaSimpleTests(SimpleTestCase):
+    async def test_flujo_websocket_eco(self):
+        # 1. Establecer conexión al endpoint
+        communicator = WebsocketCommunicator(application, "/ws/iot/")
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected, "No se pudo conectar al endpoint WebSocket")
+
+        # 2. Enviar el JSON simulado de Node-RED
+        datos_prueba = {
+            "device_id": "IOT-DEV-001",
+            "lat": -28.4696,
+            "lng": -65.7852,
+            "bateria": 98.0
+        }
+        await communicator.send_to(text_data=json.dumps(datos_prueba))
+
+        # 3. Leer la respuesta emitida por el consumidor
+        respuesta = await communicator.receive_from()
+        datos_respuesta = json.loads(respuesta)
+
+        # 4. Validar que la respuesta contiene lo que enviamos
+        self.assertEqual(datos_respuesta["status"], "recibido_en_django")
+        self.assertEqual(datos_respuesta["contenido"]["device_id"], "IOT-DEV-001")
+
+        # 5. Cerrar socket
+        await communicator.disconnect()       
+    
 

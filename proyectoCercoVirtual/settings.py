@@ -98,6 +98,7 @@ ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_env.split(',') if h.strip()]
 # 3. APLICACIONES INSTALADAS Y MIDDLEWARE
 # ==============================================================================
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -109,6 +110,17 @@ INSTALLED_APPS = [
     # Aplicación principal de nuestro dominio: Cercos Virtuales, Ganado, Telemetría y Alertas
     'cercos',
 ]
+
+ASGI_APPLICATION = 'proyectoCercoVirtual.asgi.application'
+
+# Para esta prueba aislada sin depender de Redis, usamos la capa en memoria:
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
+
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

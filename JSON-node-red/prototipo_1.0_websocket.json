@@ -1,0 +1,91 @@
+[
+    {
+        "id": "d5a934baef358214",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "node_inject_test",
+        "type": "inject",
+        "z": "d5a934baef358214",
+        "name": "Disparar dato",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 110,
+        "y": 140,
+        "wires": [
+            [
+                "node_function_payload"
+            ]
+        ]
+    },
+    {
+        "id": "node_function_payload",
+        "type": "function",
+        "z": "d5a934baef358214",
+        "name": "Simular Telemetría",
+        "func": "msg.payload = {\n    device_id: \"IOT-DEV-001\",\n    timestamp: new Date().toISOString(),\n    status: \"active\",\n    data: {\n        battery: 95.5,\n        lat: -28.4696,\n        lng: -65.7852\n    }\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 140,
+        "wires": [
+            [
+                "node_ws_out",
+                "node_debug_out"
+            ]
+        ]
+    },
+    {
+        "id": "node_ws_out",
+        "type": "websocket out",
+        "z": "d5a934baef358214",
+        "name": "Enviar a Django",
+        "server": "",
+        "client": "ws_client_django",
+        "x": 600,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "node_debug_out",
+        "type": "debug",
+        "z": "d5a934baef358214",
+        "name": "Debug payload",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 600,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "ws_client_django",
+        "type": "websocket-client",
+        "path": "ws://127.0.0.1:8000/ws/iot/",
+        "tls": "",
+        "wholemsg": "false"
+    }
+]
