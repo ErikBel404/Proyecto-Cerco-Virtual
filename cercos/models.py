@@ -179,7 +179,7 @@ class TelemetriaGPS(models.Model):
     ¿PARA QUÉ SIRVE ESTA TABLA ADEMÁS DE `Animal.ultima_posicion`?
     Mientras `Animal.ultima_posicion` permite saber dónde está el animal ahora mismo
     sin recorrer millones de filas, `TelemetriaGPS` conserva la traza histórica de
-    movimientos para auditoría, mapas de calor de pastoreo o análisis del INTA.
+    movimientos para auditoría, mapas de calor de pastoreo o análisis.
     """
     animal = models.ForeignKey(
         Animal,

@@ -19,7 +19,7 @@ Toda la arquitectura, especificaciones funcionales y guías de integración se e
    - 📄 [**ERS — Especificación de Requisitos de Software**](./docs/ERS_Especificacion_Requisitos.md) (Requerimientos de Usuario, Requisitos Funcionales, No Funcionales y Matriz de Trazabilidad).
    - 📐 [**SDD — Documento de Diseño del Sistema**](./docs/SDD_Diseno_Sistema.md) (Diagrama Entidad-Relación Espacial, Diagramas de Secuencia y Contratos de API JSON/GeoJSON).
    - 🏛️ [**Archify — Arquitectura C4 y ADRs**](./docs/archify/README.md):
-     - [Nivel 1: Contexto Ecosistema IoT UNCA / INTA](./docs/archify/01-contexto-iot-unca-inta.md)
+     - [Nivel 1: Contexto Ecosistema IoT UNCA](./docs/archify/01-contexto-iot-unca.md)
      - [Nivel 2: Contenedores (Leaflet, GeoDjango, Supabase/PostGIS)](./docs/archify/02-contenedores-y-postgis.md)
      - [Nivel 3: Componentes Internos de la App `cercos`](./docs/archify/03-componentes-django.md)
    - ☁️ [**Guía Paso a Paso de Supabase (PostgreSQL + PostGIS en la Nube)**](./docs/GUIA_SUPABASE_E_INTEGRACION.md).

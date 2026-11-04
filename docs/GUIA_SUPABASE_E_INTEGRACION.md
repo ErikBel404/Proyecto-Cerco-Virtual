@@ -1,6 +1,6 @@
 # Guía Oficial de Supabase: Acceso para Compañeros, Docentes e Integración IoT (Node-RED)
 
-**Proyecto:** SmartHerd — Sistema de Cercos Virtuales y Monitoreo Ganadero (UNCA / INTA)  
+**Proyecto:** SmartHerd — Sistema de Cercos Virtuales y Monitoreo Ganadero (UNCA)  
 **Base de Datos en la Nube:** Supabase PostgreSQL 17 + **PostGIS 3.3.7**  
 **ID del Proyecto en Supabase:** `<ID_PROYECTO_SUPABASE>` *(configurado en el archivo `.env` privado del equipo)*
 

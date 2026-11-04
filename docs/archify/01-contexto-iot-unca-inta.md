@@ -19,7 +19,7 @@ flowchart LR
         WebGeneral["📊 Web General Agro\n(Otro Grupo)\nUsuarios, ABM general y reportes"]
     end
 
-    Operador(("👨‍🌾 Productor / Operador\n(INTA / Estancia)"))
+    Operador(("👨‍🌾 Productor / Operador\n(Estancia)"))
 
     Gateway -->|"POST /api/telemetria/procesar/\no inserción directa"| CercoApp
     Gateway -.->|"Conexión alternativa"| DB

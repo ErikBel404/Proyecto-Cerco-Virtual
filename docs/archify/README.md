@@ -5,7 +5,7 @@ Aquí se documenta de forma visual (mediante el modelo **C4** con diagramas Merm
 
 ## Índice de Arquitectura
 
-1. [**Nivel 1 (Contexto): Ecosistema IoT UNCA / INTA y Grupos de Trabajo**](./01-contexto-iot-unca-inta.md)
+1. [**Nivel 1 (Contexto): Ecosistema IoT UNCA y Grupos de Trabajo**](./01-contexto-iot-unca.md)
    - Cómo viaja el dato desde el collar en la vaca $\rightarrow$ Gateway $\rightarrow$ Base de Datos en la Nube (Supabase) $\rightarrow$ Aplicaciones Web.
 2. [**Nivel 2 (Contenedores): Django + GeoDjango + Supabase (PostGIS) + Leaflet**](./02-contenedores-y-postgis.md)
    - Interacción entre el navegador, el servidor Django y el motor espacial PostGIS en Supabase/Local.

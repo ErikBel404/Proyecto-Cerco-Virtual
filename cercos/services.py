@@ -31,7 +31,11 @@ VENTANA_ANTISPAM_MINUTOS = 5
 
 # Identificadores reservados exclusivamente para el escenario de prueba / simulación
 IDS_ANIMALES_DEMO = ['COLLAR-101', 'COLLAR-102', 'COLLAR-103', 'COLLAR-104']
-NOMBRES_CERCOS_DEMO = ['Lote Norte - Pastura INTA', 'Lote Sur - Sector Aguada']
+NOMBRES_CERCOS_DEMO = [
+    'Lote Norte - Pastura UNCA',
+    'Lote Sur - Sector Aguada',
+    'Lote Norte - Pastura INTA',
+]
 
 
 def validar_geometria_poligono(datos_geometria):
@@ -389,7 +393,7 @@ def cargar_escenario_demo_catamarca(usuario=None, lat_base=None, lng_base=None):
     ), srid=4326)
 
     cerco_norte, _ = CercoVirtual.objects.update_or_create(
-        nombre='Lote Norte - Pastura INTA',
+        nombre='Lote Norte - Pastura UNCA',
         defaults={
             'color': '#2ecc71',
             'perimetro': poligono_norte,
@@ -461,7 +465,8 @@ def limpiar_escenario_demo_catamarca():
     with transaction.atomic():
         AlertaFuga.objects.filter(
             animal__id_hardware__in=IDS_ANIMALES_DEMO).delete()
-        AlertaFuga.objects.filter(cerco__nombre__in=NOMBRES_CERCOS_DEMO).delete()
+        AlertaFuga.objects.filter(
+            cerco__nombre__in=NOMBRES_CERCOS_DEMO).delete()
         TelemetriaGPS.objects.filter(
             animal__id_hardware__in=IDS_ANIMALES_DEMO).delete()
         animales_borrados, _ = Animal.objects.filter(

@@ -38,6 +38,9 @@ function obtenerUbicacionBaseGuardada() {
         if (guardado) {
             const parsed = JSON.parse(guardado);
             if (typeof parsed.latitud === 'number' && typeof parsed.longitud === 'number') {
+                if (typeof parsed.nombre === 'string') {
+                    parsed.nombre = parsed.nombre.replace(/\s*\/?\s*INTA\s*/gi, ' ').trim();
+                }
                 return parsed;
             }
         }
@@ -63,7 +66,7 @@ L.tileLayer(
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     {
         maxZoom: 18,
-        attribution: 'Tiles © Esri — Proyecto SmartHerd (UNCA / INTA)'
+        attribution: 'Tiles © Esri — Proyecto SmartHerd (UNCA)'
     }
 ).addTo(mapa);
 
@@ -463,7 +466,7 @@ function segmentosSeCruzan(p1, p2, p3, p4) {
     const o4 = orientacion(p3, p4, p2);
 
     return ((o1 > 0 && o2 < 0) || (o1 < 0 && o2 > 0)) &&
-           ((o3 > 0 && o4 < 0) || (o3 < 0 && o4 > 0));
+        ((o3 > 0 && o4 < 0) || (o3 < 0 && o4 > 0));
 }
 
 /**
