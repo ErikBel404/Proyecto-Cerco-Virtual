@@ -233,11 +233,12 @@ class WebSocketPruebaSimpleTests(SimpleTestCase):
 
         # 2. Enviar el JSON simulado de Node-RED
         datos_prueba = {
-            "device_id": "IOT-DEV-001",
-            "lat": -28.4696,
-            "lng": -65.7852,
-            "bateria": 98.0
-        }
+           "id_hardware": "IOT-DEV-001",
+           "latitud": -28.4696,
+           "lngitud": -65.7852,
+           "fecha-hora": "2026-11-06T20:55:00Z"
+         }
+        
         await communicator.send_to(text_data=json.dumps(datos_prueba))
 
         # 3. Leer la respuesta emitida por el consumidor
@@ -246,8 +247,7 @@ class WebSocketPruebaSimpleTests(SimpleTestCase):
 
         # 4. Validar que la respuesta contiene lo que enviamos
         self.assertEqual(datos_respuesta["status"], "recibido_en_django")
-        self.assertEqual(datos_respuesta["contenido"]["device_id"], "IOT-DEV-001")
-
+        self.assertEqual(datos_respuesta["contenido"]["id_hardware"], "IOT-DEV-001")
         # 5. Cerrar socket
         await communicator.disconnect()       
     

@@ -93,6 +93,8 @@ class CercoVirtual(models.Model):
             return 0.0
 
 
+
+
 class Animal(models.Model):
     """
     Representa un animal del rodeo vinculado a un collar IoT GPS.
