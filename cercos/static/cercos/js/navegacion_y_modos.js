@@ -238,6 +238,44 @@ function limpiarEscenarioDemo() {
     }, '⏳ Limpiando...');
 }
 
+function _actualizarBotonesModoOperacion(esSimulacion) {
+    const btnModo = document.getElementById('boton-modo-operacion');
+    const txtModo = document.getElementById('texto-modo-operacion');
+    const controlesDemo = document.getElementById('controles-demo-simulacion');
+    const navTelemetria = document.getElementById('item-nav-telemetria');
+    const btnNuevoAnimalPanel = document.getElementById('boton-nuevo-animal-panel');
+
+    if (txtModo) {
+        txtModo.textContent = esSimulacion ? '🧪 Modo Simulación (Pruebas)' : '📡 Modo Real (Node-RED)';
+    }
+    if (btnModo) {
+        btnModo.classList.toggle('bg-campo-900', !esSimulacion);
+        btnModo.classList.toggle('text-emerald-300', !esSimulacion);
+        btnModo.classList.toggle('border-emerald-700/70', !esSimulacion);
+        btnModo.classList.toggle('bg-amber-900/90', esSimulacion);
+        btnModo.classList.toggle('text-amber-200', esSimulacion);
+        btnModo.classList.toggle('border-amber-500', esSimulacion);
+    }
+    if (controlesDemo) {
+        controlesDemo.classList.toggle('hidden', !esSimulacion);
+        controlesDemo.classList.toggle('flex', esSimulacion);
+    }
+    if (navTelemetria) navTelemetria.classList.toggle('hidden', !esSimulacion);
+    if (btnNuevoAnimalPanel) btnNuevoAnimalPanel.classList.toggle('hidden', !esSimulacion);
+}
+
+function _vaciarCapasVisualesMapa() {
+    listaCercosDatos = [];
+    listaAnimalesDatos = [];
+    listaAlertasDatos = [];
+    capaCercosExistentes.clearLayers();
+    capaAnimalesMapa.clearLayers();
+    renderizarResumenCercosGeneral();
+    renderizarListaGanado();
+    renderizarPanelProfugos([], []);
+    actualizarBadgesSuperiores(0);
+}
+
 function alternarModoSimulacion() {
     modoSimulacionActivo = !modoSimulacionActivo;
     arrastrandoAnimal = false;
@@ -255,70 +293,25 @@ function alternarModoSimulacion() {
     const buscadorGanado = document.getElementById('buscador-ganado');
     if (buscadorGanado) buscadorGanado.value = '';
 
-    const btnModo = document.getElementById('boton-modo-operacion');
-    const txtModo = document.getElementById('texto-modo-operacion');
-    const controlesDemo = document.getElementById('controles-demo-simulacion');
-    const navTelemetria = document.getElementById('item-nav-telemetria');
-    const btnNuevoAnimalPanel = document.getElementById('boton-nuevo-animal-panel');
+    _actualizarBotonesModoOperacion(modoSimulacionActivo);
 
     if (modoSimulacionActivo) {
-        if (txtModo) txtModo.textContent = '🧪 Modo Simulación (Pruebas)';
-        if (btnModo) {
-            btnModo.classList.remove('bg-campo-900', 'text-emerald-300', 'border-emerald-700/70');
-            btnModo.classList.add('bg-amber-900/90', 'text-amber-200', 'border-amber-500');
-        }
-        if (controlesDemo) {
-            controlesDemo.classList.remove('hidden');
-            controlesDemo.classList.add('flex');
-        }
-        if (navTelemetria) navTelemetria.classList.remove('hidden');
-        if (btnNuevoAnimalPanel) btnNuevoAnimalPanel.classList.remove('hidden');
-
-        mostrarToast(
-            'Modo Simulación activado: use "⚡ Cargar Demo" o "+ Nuevo (Sim)" para probar.',
-            'info',
-            '🧪 Modo Laboratorio Activo'
-        );
+        mostrarToast('Modo Simulación activado: use "⚡ Cargar Demo" o "+ Nuevo (Sim)" para probar.', 'info', '🧪 Modo Laboratorio Activo');
         sincronizarTodo(false);
-    } else {
-        if (txtModo) txtModo.textContent = '📡 Modo Real (Node-RED)';
-        if (btnModo) {
-            btnModo.classList.add('bg-campo-900', 'text-emerald-300', 'border-emerald-700/70');
-            btnModo.classList.remove('bg-amber-900/90', 'text-amber-200', 'border-amber-500');
-        }
-        if (controlesDemo) {
-            controlesDemo.classList.add('hidden');
-            controlesDemo.classList.remove('flex');
-        }
-        if (navTelemetria) navTelemetria.classList.add('hidden');
-        if (btnNuevoAnimalPanel) btnNuevoAnimalPanel.classList.add('hidden');
-
-        if (seccionActual === 'telemetria') {
-            cambiarSeccionPrincipal('cercos');
-        }
-
-        // Vaciar las capas visuales inmediatamente para no dejar marcadores de prueba colgados
-        listaCercosDatos = [];
-        listaAnimalesDatos = [];
-        listaAlertasDatos = [];
-        capaCercosExistentes.clearLayers();
-        capaAnimalesMapa.clearLayers();
-        renderizarResumenCercosGeneral();
-        renderizarListaGanado();
-        renderizarPanelProfugos([], []);
-        actualizarBadgesSuperiores(0);
-
-        peticionPostJson('/api/demo/limpiar/')
-            .then(() => {
-                mostrarToast(
-                    'Modo Real activo: datos de prueba removidos. Mostrando únicamente registros reales.',
-                    'exito',
-                    '📡 Monitoreo Real Activo'
-                );
-                sincronizarTodo(true);
-            })
-            .catch(() => sincronizarTodo(true));
+        return;
     }
+
+    if (seccionActual === 'telemetria') {
+        cambiarSeccionPrincipal('cercos');
+    }
+
+    _vaciarCapasVisualesMapa();
+    peticionPostJson('/api/demo/limpiar/')
+        .then(() => {
+            mostrarToast('Modo Real activo: mostrando únicamente registros reales.', 'exito', '📡 Monitoreo Real Activo');
+            sincronizarTodo(true);
+        })
+        .catch(() => sincronizarTodo(true));
 }
 
 

@@ -2,18 +2,13 @@
 ==============================================================================
 MODELOS DE DATOS GEOESPACIALES: cercos/models.py
 ==============================================================================
-¿QUÉ HACE ESTE ARCHIVO?
-Define la estructura de tablas en PostgreSQL + PostGIS mediante el ORM de GeoDjango:
-1. `CercoVirtual`: Almacena los polígonos perimetrales de los lotes (RF_1, RF_2, RF_8).
-2. `Animal`: Almacena el ganado monitoreado, su collar físico (`id_hardware`),
-el cerco al que está asignado y su última coordenada GPS (RF-08, RF-09, RF-10).
-3. `TelemetriaGPS`: Bitácora histórica de posiciones enviadas por los collares (RF_3, RF_4).
-4. `AlertaFuga`: Registro de incidentes cuando un animal sale de su cerco (RF_5, RF_6, RF_7).
-
-¿POR QUÉ USAMOS SRID 4326 EN TODOS LOS CAMPOS ESPACIALES?
-SRID 4326 corresponde al sistema geodésico mundial WGS 84 (Latitud y Longitud
-en grados decimales), que es el estándar nativo que entregan los módulos GPS
-de los collares desarrollados por Ingeniería Electrónica y el formato GeoJSON.
+Estructura de tablas en PostgreSQL + PostGIS (SRID 4326 - WGS84):
+1. `Lectura`: Bandeja de entrada cruda donde Node-RED deposita los datos del collar
+   (`id_hardware`, `latitud`, `longitud`, `fecha_hora`) sin depender de otros modelos.
+2. `CercoVirtual`: Polígonos perimetrales de los lotes (RF_1, RF_2, RF_8).
+3. `Animal`: Vinculación del collar (`id_hardware`) con su cerco y estado actual (RF-08 a RF-10).
+4. `TelemetriaGPS`: Historial geoespacial validado que consume los datos de `Lectura` (RF_3, RF_4).
+5. `AlertaFuga`: Incidentes emitidos cuando una posición sale del cerco (RF_5, RF_6, RF_7).
 ==============================================================================
 """
 
@@ -22,17 +17,55 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 
+class Lectura(models.Model):
+    """
+    Tabla de entrada (`public.lectura`) donde Node-RED deposita las lecturas crudas
+    que llegan desde los collares GPS.
+
+    ¿Por qué está separada de `TelemetriaGPS` y `Animal`?
+    - Desacopla totalmente a Node-RED del resto del sistema: Node-RED solo inserta
+      `id_hardware`, `latitud`, `longitud` y `fecha_hora` en esta tabla sin necesitar
+      claves foráneas ni geometrías PostGIS.
+    - Luego, `TelemetriaGPS` consume las filas pendientes (`procesada=False`), construye
+      el punto geográfico y evalúa si está dentro o fuera del cerco.
+    """
+    id_hardware = models.CharField(
+        max_length=50,
+        db_index=True,
+        verbose_name="ID de Hardware / Collar"
+    )
+    latitud = models.FloatField(
+        verbose_name="Latitud"
+    )
+    longitud = models.FloatField(
+        verbose_name="Longitud"
+    )
+    fecha_hora = models.DateTimeField(
+        default=timezone.now,
+        verbose_name="Fecha y Hora de Lectura"
+    )
+    procesada = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="Procesada por Telemetría GPS"
+    )
+
+    class Meta:
+        db_table = 'lectura'
+        verbose_name = "Lectura Cruda (Node-RED)"
+        verbose_name_plural = "Lecturas Crudas (Node-RED)"
+        ordering = ['-fecha_hora']
+
+    def __str__(self):
+        estado = "Procesada" if self.procesada else "Pendiente"
+        return f"{self.id_hardware} ({self.latitud}, {self.longitud}) [{estado}]"
+
+
 class CercoVirtual(models.Model):
     """
-    Representa un potrero, lote o parcela rural delimitada por un polígono cerrado.
-
-    ¿POR QUÉ ESTÁ DISEÑADO ASÍ?
-    - `perimetro = models.PolygonField(srid=4326)` crea una columna espacial nativa
-    `geometry(Polygon, 4326)` en PostGIS con un índice espacial GiST automático.
-    Eso permite que la base de datos resuelva en milisegundos si un punto GPS cae
-    dentro o fuera del lote mediante la función espacial `ST_Contains`.
+    Representa un potrero o lote delimitado por un polígono cerrado (`PolygonField` SRID 4326).
+    PostGIS indexa este campo para resolver en milisegundos si un punto cae dentro (`ST_Contains`).
     """
-    # Relación opcional con el usuario operador que creó el cerco (según DER)
     usuario = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -40,27 +73,17 @@ class CercoVirtual(models.Model):
         null=True,
         blank=True
     )
-
-    # Nombre identificatorio del potrero o lote (ej: "Lote Norte - Alfalfa")
     nombre = models.CharField(max_length=100, verbose_name="Nombre del Lote")
-
-    # Color hexadecimal (#RRGGBB) para distinguir visualmente cada lote en Leaflet
     color = models.CharField(
-        max_length=7, default="#2ecc71", verbose_name="Color de Identificación")
-
-    # Polígono espacial en coordenadas WGS84 [Longitud, Latitud]
+        max_length=7, default="#2ecc71", verbose_name="Color de Identificación"
+    )
     perimetro = models.PolygonField(
-        srid=4326, verbose_name="Perímetro del Cerco")
-
-    # Configuración de criticidad de alertas por lote:
-    # - False (por defecto): Potrero interno (aplica ventana Anti-Spam de 5 min entre alertas).
-    # - True: Perímetro crítico / lindero con vecino, ruta o canal (emite alerta continua en cada lectura fuera).
+        srid=4326, verbose_name="Perímetro del Cerco"
+    )
     alerta_continua = models.BooleanField(
         default=False,
         verbose_name="Perímetro Crítico (Alerta Continua sin Anti-Spam)"
     )
-
-    # Auditoría temporal automática
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
 
@@ -74,20 +97,10 @@ class CercoVirtual(models.Model):
 
     @property
     def area_hectareas(self):
-        """
-        ¿QUÉ HACE ESTA PROPIEDAD?
-        Calcula la superficie aproximada del lote en hectáreas (1 ha = 10.000 m²).
-
-        ¿POR QUÉ TRANSFORMA A SRID 3857?
-        Porque en SRID 4326 las unidades son grados esféricos (no metros). Al clonar
-        la geometría en memoria y proyectarla a Web Mercator (SRID 3857) aplicando el
-        factor de corrección de latitud de Catamarca (~cos(-28.47°)² = 0.772),
-        obtenemos los metros cuadrados sin alterar el registro original en la base.
-        """
+        """Calcula la superficie aproximada en hectáreas proyectando en memoria a SRID 3857."""
         try:
             geom_metrica = self.perimetro.transform(3857, clone=True)
-            factor_latitud = 0.772
-            area_m2 = geom_metrica.area * factor_latitud
+            area_m2 = geom_metrica.area * 0.772
             return round(area_m2 / 10000.0, 2)
         except Exception:
             return 0.0
@@ -95,13 +108,8 @@ class CercoVirtual(models.Model):
 
 class Animal(models.Model):
     """
-    Representa un animal del rodeo vinculado a un collar IoT GPS.
-
-    ¿POR QUÉ `cerco` TIENE `on_delete=models.SET_NULL`?
-    Cumple estrictamente el Control de Integridad Referencial del Caso de Uso
-    "Eliminar Cerco Virtual" (RF_8): si el productor borra un cerco del mapa,
-    las vacas asignadas a ese cerco NO deben borrarse de la base de datos;
-    deben pasar automáticamente al estado "Sin cerco asignado" (`cerco = NULL`).
+    Vincula un collar (`id_hardware`) con su cerco asignado y conserva su última ubicación
+    conocida para dibujarlo rápido en el mapa sin recorrer todo el historial.
     """
     ESPECIE_CHOICES = [
         ('Bovino', 'Bovino (Vaca / Toro)'),
@@ -111,25 +119,22 @@ class Animal(models.Model):
         ('Otro', 'Otro'),
     ]
 
-    # Identificador único del collar electrónico (clave de cruce con el Gateway IoT)
     id_hardware = models.CharField(
         max_length=50,
         unique=True,
         verbose_name="ID de Collar / Hardware"
     )
-    # Nombre o caravana visible para el productor (ej. "Vaca #104 - Aberdeen Angus")
     nombre = models.CharField(
         max_length=100,
         verbose_name="Nombre / Identificación del Animal"
     )
-    # Pensado inicialmente para vacas (Bovino), pero preparado para otras especies
     especie = models.CharField(
         max_length=30,
         choices=ESPECIE_CHOICES,
         default='Bovino',
         verbose_name="Especie"
     )
-    # Cerco virtual al que pertenece actualmente (Null = Sin cerco asignado)
+    # on_delete=SET_NULL: Si se elimina el cerco (RF_8), el animal queda "Sin cerco asignado"
     cerco = models.ForeignKey(
         CercoVirtual,
         on_delete=models.SET_NULL,
@@ -138,7 +143,6 @@ class Animal(models.Model):
         blank=True,
         verbose_name="Cerco Virtual Asignado"
     )
-    # Última coordenada conocida del animal como punto geométrico PostGIS [lng, lat]
     ultima_posicion = models.PointField(
         srid=4326,
         null=True,
@@ -150,12 +154,10 @@ class Animal(models.Model):
         blank=True,
         verbose_name="Fecha de Última Lectura GPS"
     )
-    # Bandera rápida para filtrar animales prófugos (RF_6: Listado fuera de límite)
     estado_fuga = models.BooleanField(
         default=False,
         verbose_name="Fuera del Cerco (En Fuga)"
     )
-    # Marca de tiempo exacta en que se detectó que cruzó el perímetro (RF_7)
     fecha_hora_fuga = models.DateTimeField(
         null=True,
         blank=True,
@@ -174,12 +176,9 @@ class Animal(models.Model):
 
 class TelemetriaGPS(models.Model):
     """
-    Almacena el historial de coordenadas recibidas desde el collar GPS (RF_3).
-
-    ¿PARA QUÉ SIRVE ESTA TABLA ADEMÁS DE `Animal.ultima_posicion`?
-    Mientras `Animal.ultima_posicion` permite saber dónde está el animal ahora mismo
-    sin recorrer millones de filas, `TelemetriaGPS` conserva la traza histórica de
-    movimientos para auditoría, mapas de calor de pastoreo o análisis.
+    Bitácora geoespacial procesada por Django (RF_3, RF_4).
+    Toma los datos crudos de `Lectura`, los convierte en geometría PostGIS (`PointField`)
+    y guarda el resultado de evaluar si la coordenada cayó dentro o fuera del cerco.
     """
     animal = models.ForeignKey(
         Animal,
@@ -187,9 +186,17 @@ class TelemetriaGPS(models.Model):
         related_name='telemetrias',
         verbose_name="Animal"
     )
+    lectura_origen = models.ForeignKey(
+        Lectura,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='telemetrias_procesadas',
+        verbose_name="Lectura Cruda de Origen"
+    )
     posicion = models.PointField(
         srid=4326,
-        verbose_name="Coordenada GPS"
+        verbose_name="Coordenada GPS (PostGIS)"
     )
     dentro_del_cerco = models.BooleanField(
         default=True,
@@ -201,8 +208,8 @@ class TelemetriaGPS(models.Model):
     )
 
     class Meta:
-        verbose_name = "Lectura de Telemetría GPS"
-        verbose_name_plural = "Lecturas de Telemetría GPS"
+        verbose_name = "Telemetría GPS Procesada"
+        verbose_name_plural = "Telemetrías GPS Procesadas"
         ordering = ['-fecha_recepcion']
 
     def __str__(self):
@@ -212,14 +219,8 @@ class TelemetriaGPS(models.Model):
 
 class AlertaFuga(models.Model):
     """
-    Representa un incidente formal de escape cuando un animal cruza el límite de su cerco (RF_5, RF_7).
-
-    ¿PARA QUÉ SIRVE ESTA TABLA?
-    1. Permite encolar y persistir alertas si el operador estaba desconectado cuando
-    ocurrió la fuga (Camino Alternativo 1 de Emitir Alerta).
-    2. Permite aplicar la ventana Anti-Spam de 5 minutos (Camino Alternativo 2):
-    consultando cuándo se emitió la última `AlertaFuga` para ese animal evitamos
-    bombardear al usuario con cientos de alertas mientras la vaca camina fuera.
+    Incidente formal de escape cuando `TelemetriaGPS` detecta que el animal salió de su cerco (RF_5, RF_7).
+    Permite auditar fugas históricas y aplicar la ventana Anti-Spam de 5 minutos.
     """
     animal = models.ForeignKey(
         Animal,

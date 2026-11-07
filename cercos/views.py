@@ -2,14 +2,8 @@
 ==============================================================================
 CAPA DE VISTAS Y ENDPOINTS HTTP / GEOJSON: cercos/views.py
 ==============================================================================
-¿QUÉ HACE ESTE ARCHIVO?
-Actúa como controlador HTTP entre el cliente (navegador con Leaflet o Gateway IoT)
-y nuestras capas internas de validación (`forms.py`) y negocio espacial (`services.py`).
-
-Cada vista sigue tres pasos simples:
-1. Decodificar la entrada HTTP (`_decodificar_json`) y validarla con `forms.py`.
-2. Invocar la función transaccional de `services.py`.
-3. Retornar un `JsonResponse` con códigos HTTP semánticos (200, 400, 404, 500).
+Controlador HTTP liviano entre el navegador/IoT y `services.py`.
+Cada vista solo decodifica el JSON, valida con `forms.py` y delega en `services.py`.
 ==============================================================================
 """
 
@@ -24,7 +18,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
 from .forms import CercoVirtualForm, AnimalForm, TelemetriaGPSForm
-from .models import CercoVirtual, Animal, AlertaFuga
+from .models import Lectura, CercoVirtual, Animal, AlertaFuga
 from .services import (
     validar_geometria_poligono,
     reevaluar_animales_de_cerco,
@@ -32,6 +26,7 @@ from .services import (
     asignar_animal_a_cerco,
     desvincular_animal_de_cerco,
     evaluar_y_registrar_fuga,
+    serializar_cerco_geojson,
     serializar_animal,
     serializar_alerta,
     cargar_escenario_demo_catamarca,
@@ -43,26 +38,19 @@ from .services import (
 
 
 # ==============================================================================
-# UTILIDADES INTERNAS PARA EVITAR CÓDIGO REPETIDO EN LAS VISTAS
+# UTILIDADES INTERNAS CORTAS
 # ==============================================================================
 
 def _decodificar_json(request):
-    """
-    Decodifica el cuerpo JSON de una petición POST.
-    Retorna `(datos_dict, None)` si es válido, o `(None, JsonResponse_400)` si falla.
-    """
+    """Decodifica el cuerpo JSON de una petición POST."""
     try:
         return json.loads(request.body or b'{}'), None
     except json.JSONDecodeError:
-        respuesta_error = JsonResponse(
-            {'estado': 'error', 'mensaje': 'El cuerpo de la solicitud no es un JSON válido.'},
-            status=400
-        )
-        return None, respuesta_error
+        return None, JsonResponse({'estado': 'error', 'mensaje': 'JSON inválido.'}, status=400)
 
 
 def _extraer_error_form(form):
-    """Devuelve el primer mensaje de validación legible de un formulario de Django."""
+    """Devuelve el primer mensaje de error de un formulario."""
     for errores in form.errors.values():
         if errores:
             return errores[0]
@@ -70,15 +58,36 @@ def _extraer_error_form(form):
 
 
 def _extraer_error_validacion(error_val):
-    """Extrae el texto principal de una excepción `ValidationError`."""
+    """Extrae el texto principal de un `ValidationError`."""
     if hasattr(error_val, 'messages') and error_val.messages:
         return error_val.messages[0]
     return str(error_val)
 
 
+def _ubicar_animal_recien_creado(animal, form, cerco_obj):
+    """Ubica al animal recién creado en las coordenadas indicadas o en el centro de su lote."""
+    lat = form.cleaned_data.get('latitud')
+    lng = form.cleaned_data.get('longitud')
+    if lat is not None and lng is not None:
+        res = evaluar_y_registrar_fuga(animal, Point(lng, lat, srid=4326))
+        return res.get('alerta') if res.get('alerta_emitida') else None
+
+    if cerco_obj:
+        centro = cerco_obj.perimetro.centroid
+        evaluar_y_registrar_fuga(animal, Point(centro.x, centro.y, srid=4326))
+    return None
+
+
+def _buscar_animal_por_id_o_collar(animal_id, id_hw):
+    """Busca un animal por su ID numérico o por su `id_hardware`."""
+    if animal_id:
+        return Animal.objects.select_related('cerco').get(pk=animal_id)
+    return Animal.objects.select_related('cerco').get(id_hardware__iexact=id_hw)
+
+
 @ensure_csrf_cookie
 def gestion_cercos(request):
-    """Renderiza la interfaz principal de pantalla dividida (`cercos/mapa.html`)."""
+    """Renderiza la interfaz principal (`cercos/mapa.html`)."""
     return render(request, 'cercos/mapa.html')
 
 
@@ -88,41 +97,21 @@ def gestion_cercos(request):
 
 @require_http_methods(["GET"])
 def obtener_cercos(request):
-    """
-    Consulta los cercos en PostGIS y los serializa en estándar GeoJSON (`FeatureCollection`).
-    En Modo Real (`?modo=real`) excluye los lotes de demostración.
-    """
+    """Devuelve los cercos en formato GeoJSON (`FeatureCollection`)."""
     modo = request.GET.get('modo', 'real')
-    queryset_cercos = CercoVirtual.objects.prefetch_related('animales').all()
-
+    cercos = CercoVirtual.objects.prefetch_related('animales').all()
     if modo == 'real':
-        queryset_cercos = queryset_cercos.exclude(nombre__in=NOMBRES_CERCOS_DEMO)
+        cercos = cercos.exclude(nombre__in=NOMBRES_CERCOS_DEMO)
 
-    elementos = []
-    for cerco in queryset_cercos:
-        animales_lote = list(cerco.animales.all())
-        elementos.append({
-            'type': 'Feature',
-            'id': cerco.id,
-            'properties': {
-                'id': cerco.id,
-                'nombre': cerco.nombre,
-                'color': cerco.color,
-                'alerta_continua': cerco.alerta_continua,
-                'area_hectareas': cerco.area_hectareas,
-                'total_animales': len(animales_lote),
-                'animales_en_fuga': sum(1 for a in animales_lote if a.estado_fuga),
-                'fecha_creacion': timezone.localtime(cerco.fecha_creacion).strftime("%d/%m/%Y")
-            },
-            'geometry': json.loads(cerco.perimetro.geojson)
-        })
-
-    return JsonResponse({'type': 'FeatureCollection', 'features': elementos})
+    return JsonResponse({
+        'type': 'FeatureCollection',
+        'features': [serializar_cerco_geojson(c) for c in cercos],
+    })
 
 
 @require_http_methods(["POST"])
 def crear_cerco(request):
-    """Implementa `CU_01 (Crear Cerco Virtual - RF_1)`."""
+    """Crea un nuevo cerco virtual (`RF_1`)."""
     datos, error_resp = _decodificar_json(request)
     if error_resp:
         return error_resp
@@ -143,13 +132,13 @@ def crear_cerco(request):
                 color=form.cleaned_data['color'],
                 alerta_continua=form.cleaned_data['alerta_continua'],
                 perimetro=geometria,
-                usuario=request.user if request.user.is_authenticated else None
+                usuario=request.user if request.user.is_authenticated else None,
             )
         return JsonResponse({
             'estado': 'exito',
             'id': nuevo_cerco.id,
             'area_hectareas': nuevo_cerco.area_hectareas,
-            'mensaje': 'Cerco virtual guardado correctamente.'
+            'mensaje': 'Cerco virtual guardado correctamente.',
         })
     except ValidationError as error_val:
         return JsonResponse({'estado': 'error', 'mensaje': _extraer_error_validacion(error_val)}, status=400)
@@ -159,15 +148,11 @@ def crear_cerco(request):
 
 @require_http_methods(["POST"])
 def editar_cerco(request, id_cerco):
-    """Implementa `CU_02 (Modificar Cerco Virtual - RF_2)`."""
+    """Modifica un cerco virtual y re-evalúa sus animales (`RF_2`)."""
     try:
         cerco = CercoVirtual.objects.get(pk=id_cerco)
     except CercoVirtual.DoesNotExist:
-        return JsonResponse({
-            'estado': 'error',
-            'codigo': 'no_encontrado',
-            'mensaje': 'El cerco seleccionado ya no existe en el sistema.'
-        }, status=404)
+        return JsonResponse({'estado': 'error', 'codigo': 'no_encontrado', 'mensaje': 'El cerco ya no existe.'}, status=404)
 
     datos, error_resp = _decodificar_json(request)
     if error_resp:
@@ -182,20 +167,19 @@ def editar_cerco(request, id_cerco):
         return JsonResponse({'estado': 'error', 'mensaje': _extraer_error_form(form)}, status=400)
 
     try:
-        datos_geometria = datos.get('geometria')
         with transaction.atomic():
             cerco.nombre = form.cleaned_data['nombre']
             cerco.color = form.cleaned_data['color']
             cerco.alerta_continua = form.cleaned_data['alerta_continua']
-            if datos_geometria:
-                cerco.perimetro = validar_geometria_poligono(datos_geometria)
+            if datos.get('geometria'):
+                cerco.perimetro = validar_geometria_poligono(datos['geometria'])
             cerco.save()
             alertas_nuevas = reevaluar_animales_de_cerco(cerco)
 
         return JsonResponse({
             'estado': 'exito',
             'alertas_generadas': alertas_nuevas,
-            'mensaje': 'Cerco virtual modificado correctamente.'
+            'mensaje': 'Cerco virtual modificado correctamente.',
         })
     except ValidationError as error_val:
         return JsonResponse({'estado': 'error', 'mensaje': _extraer_error_validacion(error_val)}, status=400)
@@ -205,13 +189,13 @@ def editar_cerco(request, id_cerco):
 
 @require_http_methods(["POST"])
 def eliminar_cerco(request, id_cerco):
-    """Implementa `CU_03 (Eliminar Cerco Virtual - RF_8)`."""
+    """Elimina un cerco virtual dejando sus animales sin cerco asignado (`RF_8`)."""
     try:
         cerco = CercoVirtual.objects.get(pk=id_cerco)
         eliminar_cerco_seguro(cerco)
         return JsonResponse({
             'estado': 'exito',
-            'mensaje': 'Cerco virtual eliminado correctamente. Los animales vinculados quedaron sin cerco asignado.'
+            'mensaje': 'Cerco eliminado correctamente. Los animales quedaron sin cerco asignado.',
         })
     except CercoVirtual.DoesNotExist:
         return JsonResponse({'estado': 'error', 'mensaje': 'El cerco seleccionado ya no existe.'}, status=404)
@@ -225,31 +209,27 @@ def eliminar_cerco(request, id_cerco):
 
 @require_http_methods(["GET"])
 def obtener_animales(request):
-    """
-    Retorna el padrón de animales monitoreados con su estado y coordenadas.
-    Si el cliente opera en Modo Real (`?modo=real`), limpia cualquier dato
-    remanente de la Demo y sincroniza en memoria las lecturas de Node-RED.
-    """
+    """Consume las lecturas nuevas de `Lectura` y retorna los animales actualizados."""
     modo = request.GET.get('modo', 'real')
-    queryset_animales = Animal.objects.select_related('cerco').all()
-
     if modo == 'real':
         limpiar_escenario_demo_catamarca()
-        queryset_animales = queryset_animales.exclude(id_hardware__in=IDS_ANIMALES_DEMO)
 
-    lista_animales = list(queryset_animales)
-    alertas_detectadas = sincronizar_lecturas_externas_nodered(lista_animales)
+    alertas_detectadas = sincronizar_lecturas_externas_nodered()
+
+    animales = Animal.objects.select_related('cerco').all()
+    if modo == 'real':
+        animales = animales.exclude(id_hardware__in=IDS_ANIMALES_DEMO)
 
     return JsonResponse({
         'estado': 'exito',
         'alertas_nuevas': alertas_detectadas,
-        'animales': [serializar_animal(a) for a in lista_animales]
+        'animales': [serializar_animal(a) for a in animales],
     })
 
 
 @require_http_methods(["POST"])
 def crear_animal(request):
-    """Da de alta un animal con su collar `id_hardware`."""
+    """Registra un animal con su collar `id_hardware`."""
     datos, error_resp = _decodificar_json(request)
     if error_resp:
         return error_resp
@@ -258,40 +238,27 @@ def crear_animal(request):
     if not form.is_valid():
         return JsonResponse({'estado': 'error', 'mensaje': _extraer_error_form(form)}, status=400)
 
+    cerco_obj = None
+    if datos.get('cerco_id'):
+        cerco_obj = CercoVirtual.objects.filter(pk=datos['cerco_id']).first()
+        if not cerco_obj:
+            return JsonResponse({'estado': 'error', 'mensaje': 'El cerco seleccionado no existe.'}, status=404)
+
     try:
         with transaction.atomic():
-            cerco_id = datos.get('cerco_id')
-            cerco_obj = None
-            if cerco_id:
-                try:
-                    cerco_obj = CercoVirtual.objects.get(pk=cerco_id)
-                except CercoVirtual.DoesNotExist:
-                    return JsonResponse({'estado': 'error', 'mensaje': 'El cerco seleccionado no existe.'}, status=404)
-
             animal = Animal.objects.create(
                 id_hardware=form.cleaned_data['id_hardware'],
                 nombre=form.cleaned_data['nombre'],
                 especie=form.cleaned_data.get('especie') or 'Bovino',
-                cerco=cerco_obj
+                cerco=cerco_obj,
             )
-
-            lat = form.cleaned_data.get('latitud')
-            lng = form.cleaned_data.get('longitud')
-            alerta_generada = None
-
-            if lat is not None and lng is not None:
-                res = evaluar_y_registrar_fuga(animal, Point(lng, lat, srid=4326))
-                if res.get('alerta_emitida'):
-                    alerta_generada = res.get('alerta')
-            elif cerco_obj:
-                centro = cerco_obj.perimetro.centroid
-                evaluar_y_registrar_fuga(animal, Point(centro.x, centro.y, srid=4326))
+            alerta = _ubicar_animal_recien_creado(animal, form, cerco_obj)
 
         return JsonResponse({
             'estado': 'exito',
             'animal': serializar_animal(animal),
-            'alerta': alerta_generada,
-            'mensaje': f'Animal {animal.id_hardware} registrado correctamente.'
+            'alerta': alerta,
+            'mensaje': f'Animal {animal.id_hardware} registrado correctamente.',
         })
     except Exception:
         return JsonResponse({'estado': 'error', 'mensaje': 'Error al registrar el animal.'}, status=500)
@@ -299,38 +266,28 @@ def crear_animal(request):
 
 @require_http_methods(["POST"])
 def asignar_cerco_animal(request, id_animal):
-    """Implementa `CU_07 (Asignar Animal - RF-08)` y `CU_08 (Modificar Pertenencia - RF-09)`."""
-    try:
-        animal = Animal.objects.select_related('cerco').get(pk=id_animal)
-    except Animal.DoesNotExist:
+    """Asigna o cambia el cerco de un animal (`RF-08`, `RF-09`)."""
+    animal = Animal.objects.select_related('cerco').filter(pk=id_animal).first()
+    if not animal:
         return JsonResponse({'estado': 'error', 'mensaje': 'El animal seleccionado no existe.'}, status=404)
 
     datos, error_resp = _decodificar_json(request)
     if error_resp:
         return error_resp
 
-    cerco_id = datos.get('cerco_id')
-    if not cerco_id:
-        return JsonResponse({'estado': 'error', 'mensaje': 'Debe seleccionar un cerco virtual destino.'}, status=400)
+    nuevo_cerco = CercoVirtual.objects.filter(pk=datos.get('cerco_id')).first()
+    if not nuevo_cerco:
+        return JsonResponse({'estado': 'error', 'codigo': 'cerco_no_disponible', 'mensaje': 'Cerco no disponible.'}, status=404)
 
     try:
-        nuevo_cerco = CercoVirtual.objects.get(pk=cerco_id)
-    except CercoVirtual.DoesNotExist:
-        return JsonResponse({
-            'estado': 'error',
-            'codigo': 'cerco_no_disponible',
-            'mensaje': 'El cerco seleccionado ya no está disponible.'
-        }, status=404)
-
-    try:
-        tenia_cerco_previo = animal.cerco_id is not None
-        resultado = asignar_animal_a_cerco(animal, nuevo_cerco, validar_cambio=tenia_cerco_previo)
-        accion = 'reasignado' if tenia_cerco_previo else 'asignado'
+        tenia_cerco = animal.cerco_id is not None
+        res = asignar_animal_a_cerco(animal, nuevo_cerco, validar_cambio=tenia_cerco)
+        accion = 'reasignado' if tenia_cerco else 'asignado'
         return JsonResponse({
             'estado': 'exito',
             'animal': serializar_animal(animal),
-            'alerta': resultado.get('alerta') if resultado and resultado.get('alerta_emitida') else None,
-            'mensaje': f'Animal {animal.id_hardware} {accion} al cerco «{nuevo_cerco.nombre}».'
+            'alerta': res.get('alerta') if res and res.get('alerta_emitida') else None,
+            'mensaje': f'Animal {animal.id_hardware} {accion} al cerco «{nuevo_cerco.nombre}».',
         })
     except ValidationError as error_val:
         return JsonResponse({'estado': 'error', 'mensaje': _extraer_error_validacion(error_val)}, status=400)
@@ -338,19 +295,18 @@ def asignar_cerco_animal(request, id_animal):
 
 @require_http_methods(["POST"])
 def desvincular_cerco_animal(request, id_animal):
-    """Implementa `CU_09 (Desvincular de Cerco - RF-10)`."""
-    try:
-        animal = Animal.objects.select_related('cerco').get(pk=id_animal)
-    except Animal.DoesNotExist:
+    """Quita la pertenencia de cerco de un animal (`RF-10`)."""
+    animal = Animal.objects.select_related('cerco').filter(pk=id_animal).first()
+    if not animal:
         return JsonResponse({'estado': 'error', 'mensaje': 'El animal seleccionado no existe.'}, status=404)
 
     try:
-        nombre_cerco_anterior = animal.cerco.nombre if animal.cerco else ''
+        nombre_anterior = animal.cerco.nombre if animal.cerco else ''
         desvincular_animal_de_cerco(animal)
         return JsonResponse({
             'estado': 'exito',
             'animal': serializar_animal(animal),
-            'mensaje': f'Animal {animal.id_hardware} desvinculado del cerco «{nombre_cerco_anterior}».'
+            'mensaje': f'Animal {animal.id_hardware} desvinculado del cerco «{nombre_anterior}».',
         })
     except ValidationError as error_val:
         return JsonResponse({'estado': 'error', 'mensaje': _extraer_error_validacion(error_val)}, status=400)
@@ -358,14 +314,14 @@ def desvincular_cerco_animal(request, id_animal):
 
 @require_http_methods(["POST"])
 def eliminar_animal(request, id_animal):
-    """Permite dar de baja un animal registrado."""
-    try:
-        animal = Animal.objects.get(pk=id_animal)
-        identificador = animal.id_hardware
-        animal.delete()
-        return JsonResponse({'estado': 'exito', 'mensaje': f'Animal {identificador} eliminado del sistema.'})
-    except Animal.DoesNotExist:
+    """Elimina un animal registrado."""
+    animal = Animal.objects.filter(pk=id_animal).first()
+    if not animal:
         return JsonResponse({'estado': 'error', 'mensaje': 'El animal no existe.'}, status=404)
+
+    identificador = animal.id_hardware
+    animal.delete()
+    return JsonResponse({'estado': 'exito', 'mensaje': f'Animal {identificador} eliminado del sistema.'})
 
 
 # ==============================================================================
@@ -374,7 +330,7 @@ def eliminar_animal(request, id_animal):
 
 @require_http_methods(["POST"])
 def procesar_telemetria(request):
-    """Implementa `CU_05 (Procesar Ubicación - RF_3, RF_4)` y `CU_06 (Emitir Alerta - RF_5)`."""
+    """Registra la coordenada en `Lectura` y la evalúa con `TelemetriaGPS` (`RF_3`, `RF_4`, `RF_5`)."""
     datos, error_resp = _decodificar_json(request)
     if error_resp:
         return error_resp
@@ -383,100 +339,76 @@ def procesar_telemetria(request):
     if not form.is_valid():
         return JsonResponse({'estado': 'error', 'mensaje': _extraer_error_form(form)}, status=400)
 
-    id_hw = form.cleaned_data.get('id_hardware')
-    animal_id = form.cleaned_data.get('animal_id')
-    latitud = form.cleaned_data['latitud']
-    longitud = form.cleaned_data['longitud']
-
     try:
-        if animal_id:
-            animal = Animal.objects.select_related('cerco').get(pk=animal_id)
-        else:
-            animal = Animal.objects.select_related('cerco').get(id_hardware__iexact=id_hw)
+        animal = _buscar_animal_por_id_o_collar(
+            form.cleaned_data.get('animal_id'),
+            form.cleaned_data.get('id_hardware'),
+        )
     except Animal.DoesNotExist:
-        return JsonResponse({
-            'estado': 'error',
-            'codigo': 'collar_no_registrado',
-            'mensaje': 'El collar o animal indicado no se encuentra registrado en el sistema.'
-        }, status=404)
+        return JsonResponse({'estado': 'error', 'codigo': 'collar_no_registrado', 'mensaje': 'Collar no registrado.'}, status=404)
 
-    # En PostGIS/GEOS Point recibe primero X=Longitud y luego Y=Latitud
-    resultado = evaluar_y_registrar_fuga(animal, Point(longitud, latitud, srid=4326))
+    lat = form.cleaned_data['latitud']
+    lng = form.cleaned_data['longitud']
+    lectura = Lectura.objects.create(id_hardware=animal.id_hardware, latitud=lat, longitud=lng, procesada=True)
+    res = evaluar_y_registrar_fuga(animal, Point(lng, lat, srid=4326), momento=lectura.fecha_hora, lectura_origen=lectura)
 
     return JsonResponse({
         'estado': 'exito',
         'animal': serializar_animal(animal),
-        'dentro_del_cerco': resultado['dentro_del_cerco'],
-        'sin_cerco_asignado': resultado.get('sin_cerco_asignado', False),
-        'alerta_emitida': resultado['alerta_emitida'],
-        'suprimida_por_antispam': resultado.get('suprimida_por_antispam', False),
-        'alerta': resultado.get('alerta'),
-        'mensaje': (
-            resultado['alerta']['mensaje']
-            if resultado.get('alerta_emitida') and resultado.get('alerta')
-            else f'Posición de {animal.id_hardware} actualizada correctamente.'
-        )
+        'dentro_del_cerco': res['dentro_del_cerco'],
+        'sin_cerco_asignado': res.get('sin_cerco_asignado', False),
+        'alerta_emitida': res['alerta_emitida'],
+        'suprimida_por_antispam': res.get('suprimida_por_antispam', False),
+        'alerta': res.get('alerta'),
+        'mensaje': res['alerta']['mensaje'] if res.get('alerta_emitida') and res.get('alerta') else f'Posición de {animal.id_hardware} actualizada.',
     })
 
 
 @require_http_methods(["GET"])
 def obtener_alertas(request):
-    """Implementa `CU_04 (Ver Animales Prófugos - RF_6, RF_7)`."""
+    """Lista los animales prófugos y alertas activas (`RF_6`, `RF_7`)."""
     modo = request.GET.get('modo', 'real')
-    animales_profugos = Animal.objects.select_related('cerco').filter(estado_fuga=True)
-    alertas_activas = AlertaFuga.objects.select_related('animal', 'cerco').filter(resuelta=False)
+    profugos = Animal.objects.select_related('cerco').filter(estado_fuga=True)
+    alertas = AlertaFuga.objects.select_related('animal', 'cerco').filter(resuelta=False)
 
     if modo == 'real':
-        animales_profugos = animales_profugos.exclude(id_hardware__in=IDS_ANIMALES_DEMO)
-        alertas_activas = alertas_activas.exclude(animal__id_hardware__in=IDS_ANIMALES_DEMO)
+        profugos = profugos.exclude(id_hardware__in=IDS_ANIMALES_DEMO)
+        alertas = alertas.exclude(animal__id_hardware__in=IDS_ANIMALES_DEMO)
 
-    lista_profugos = [serializar_animal(a) for a in animales_profugos]
+    lista_profugos = [serializar_animal(a) for a in profugos]
     return JsonResponse({
         'estado': 'exito',
         'total_profugos': len(lista_profugos),
         'animales_profugos': lista_profugos,
-        'alertas_activas': [serializar_alerta(al) for al in alertas_activas[:30]],
+        'alertas_activas': [serializar_alerta(al) for al in alertas[:30]],
     })
 
 
 @require_http_methods(["POST"])
 def resolver_alerta(request, id_alerta):
-    """Permite marcar una alerta de la bitácora como revisada/resuelta."""
-    try:
-        alerta = AlertaFuga.objects.select_related('animal').get(pk=id_alerta)
-        alerta.resuelta = True
-        alerta.fecha_resolucion = timezone.now()
-        alerta.save(update_fields=['resuelta', 'fecha_resolucion'])
-        return JsonResponse({'estado': 'exito', 'mensaje': 'Incidente marcado como revisado.'})
-    except AlertaFuga.DoesNotExist:
+    """Marca una alerta como revisada/resuelta."""
+    alerta = AlertaFuga.objects.filter(pk=id_alerta).first()
+    if not alerta:
         return JsonResponse({'estado': 'error', 'mensaje': 'La alerta indicada no existe.'}, status=404)
+
+    alerta.resuelta = True
+    alerta.fecha_resolucion = timezone.now()
+    alerta.save(update_fields=['resuelta', 'fecha_resolucion'])
+    return JsonResponse({'estado': 'exito', 'mensaje': 'Incidente marcado como revisado.'})
 
 
 @require_http_methods(["POST"])
 def cargar_demo(request):
-    """Puebla el escenario de demostración alrededor de la ubicación base actual."""
+    """Carga el escenario de demostración en Modo Simulación."""
     datos, _ = _decodificar_json(request)
     datos = datos or {}
-
     usuario = request.user if request.user.is_authenticated else None
-    resumen = cargar_escenario_demo_catamarca(
-        usuario=usuario,
-        lat_base=datos.get('latitud'),
-        lng_base=datos.get('longitud')
-    )
-    return JsonResponse({
-        'estado': 'exito',
-        'resumen': resumen,
-        'mensaje': 'Escenario de demostración cargado: 2 lotes y 4 animales monitoreados.'
-    })
+    resumen = cargar_escenario_demo_catamarca(usuario=usuario, lat_base=datos.get('latitud'), lng_base=datos.get('longitud'))
+    return JsonResponse({'estado': 'exito', 'resumen': resumen, 'mensaje': 'Escenario de demostración cargado.'})
 
 
 @require_http_methods(["POST"])
 def limpiar_demo(request):
-    """Elimina exclusivamente los datos de prueba de la demo sin afectar registros reales."""
+    """Elimina los datos de prueba de la demostración."""
     resumen = limpiar_escenario_demo_catamarca()
-    return JsonResponse({
-        'estado': 'exito',
-        'resumen': resumen,
-        'mensaje': 'Datos de demostración eliminados correctamente de la base de datos.'
-    })
+    return JsonResponse({'estado': 'exito', 'resumen': resumen, 'mensaje': 'Datos de demostración eliminados.'})

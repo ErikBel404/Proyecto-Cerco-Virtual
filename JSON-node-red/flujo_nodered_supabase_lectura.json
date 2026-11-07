@@ -1,0 +1,72 @@
+[
+    {
+        "id": "d5a934baef358214",
+        "type": "tab",
+        "label": "Flujo Collar -> Supabase (Tabla lectura)",
+        "disabled": false,
+        "info": "Flujo actualizado para depositar las lecturas sanitizadas del collar directamente en public.lectura de Supabase."
+    },
+    {
+        "id": "node_inject_test",
+        "type": "inject",
+        "z": "d5a934baef358214",
+        "name": "Disparar dato",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 130,
+        "y": 140,
+        "wires": [
+            [
+                "node_function_payload"
+            ]
+        ]
+    },
+    {
+        "id": "node_function_payload",
+        "type": "function",
+        "z": "d5a934baef358214",
+        "name": "Simular Telemetría (Sanitizada)",
+        "func": "const id_hardware = msg.payload?.id_hardware || \"IOT-DEV-001\";\nconst latitud = Number(msg.payload?.latitud ?? -28.4696);\nconst longitud = Number(msg.payload?.longitud ?? -65.7852);\nconst fecha_hora = msg.payload?.fecha_hora || msg.payload?.[\"fecha-hora\"] || new Date().toISOString();\n\nmsg.payload = {\n    \"id_hardware\": id_hardware,\n    \"latitud\": latitud,\n    \"longitud\": longitud,\n    \"fecha_hora\": fecha_hora\n};\n\nmsg.queryParameters = [\n    id_hardware,\n    latitud,\n    longitud,\n    fecha_hora\n];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 380,
+        "y": 140,
+        "wires": [
+            [
+                "node_debug_out"
+            ]
+        ]
+    },
+    {
+        "id": "node_debug_out",
+        "type": "debug",
+        "z": "d5a934baef358214",
+        "name": "Debug payload (Listo para tabla lectura)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 690,
+        "y": 140,
+        "wires": []
+    }
+]
+

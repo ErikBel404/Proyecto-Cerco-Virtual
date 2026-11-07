@@ -13,7 +13,14 @@ de un campo de texto plano.
 ==============================================================================
 """
 from django.contrib.gis import admin
-from .models import CercoVirtual, Animal, TelemetriaGPS, AlertaFuga
+from .models import Lectura, CercoVirtual, Animal, TelemetriaGPS, AlertaFuga
+
+
+@admin.register(Lectura)
+class LecturaAdmin(admin.ModelAdmin):
+    list_display = ('id_hardware', 'latitud', 'longitud', 'fecha_hora', 'procesada')
+    list_filter = ('procesada', 'fecha_hora')
+    search_fields = ('id_hardware',)
 
 
 @admin.register(CercoVirtual)

@@ -375,11 +375,10 @@ function poblarListaModificacion(filtroTexto = '') {
         const tarjeta = document.createElement('div');
         const estaSeleccionado = cercoEnEdicion && cercoEnEdicion.properties.id === cerco.properties.id;
 
-        tarjeta.className = `tarjeta-elemento flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all text-sm ${
-            estaSeleccionado
+        tarjeta.className = `tarjeta-elemento flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all text-sm ${estaSeleccionado
                 ? 'border-campo-500 bg-campo-50 ring-1 ring-campo-500'
                 : 'border-slate-200 hover:bg-campo-50/60 hover:border-campo-400'
-        }`;
+            }`;
 
         tarjeta.innerHTML = `
             <div class="flex items-center gap-3">
@@ -400,54 +399,32 @@ function filtrarListaModificacion() {
     poblarListaModificacion(valor);
 }
 
-function iniciarModificacionCerco(cerco, elementoTarjeta) {
-    limpiarEdicion();
-    cercoEnEdicion = cerco;
-    colorEdicionElegido = cerco.properties.color || '#2ecc71';
-
-    document.querySelectorAll('#contenedor-lista-modificar .tarjeta-elemento').forEach(t => {
-        t.classList.remove('border-campo-500', 'bg-campo-50', 'ring-1', 'ring-campo-500');
-    });
-    elementoTarjeta.classList.add('border-campo-500', 'bg-campo-50', 'ring-1', 'ring-campo-500');
-
+function _mostrarFormularioEdicionCerco(cerco) {
     const grupoNombre = document.getElementById('grupo-editar-nombre');
     const campoNombre = document.getElementById('campo-editar-nombre');
     const avisoModificar = document.getElementById('aviso-modificar');
     const btnGuardar = document.getElementById('boton-guardar-cambios');
     const btnDescartar = document.getElementById('boton-descartar-cambios');
+    const checkCritico = document.getElementById('campo-editar-alerta-continua');
 
     grupoNombre.classList.remove('hidden');
     grupoNombre.classList.add('flex');
     campoNombre.value = cerco.properties.nombre;
-
-    const checkCritico = document.getElementById('campo-editar-alerta-continua');
     if (checkCritico) checkCritico.checked = Boolean(cerco.properties.alerta_continua);
 
     document.querySelectorAll('.circulo-color-editar').forEach(circulo => {
-        if (circulo.getAttribute('data-color') === colorEdicionElegido) {
-            circulo.classList.add('scale-125', 'ring-2', 'ring-slate-800');
-        } else {
-            circulo.classList.remove('scale-125', 'ring-2', 'ring-slate-800');
-        }
+        const activo = circulo.getAttribute('data-color') === colorEdicionElegido;
+        circulo.classList.toggle('scale-125', activo);
+        circulo.classList.toggle('ring-2', activo);
+        circulo.classList.toggle('ring-slate-800', activo);
     });
 
     avisoModificar.classList.remove('hidden');
     btnGuardar.classList.remove('hidden');
     if (btnDescartar) btnDescartar.classList.remove('hidden');
+}
 
-    const anilloCoordenadas = cerco.geometry.coordinates[0].slice(0, -1);
-    puntosEdicion = anilloCoordenadas.map(coord => [coord[1], coord[0]]);
-
-    poligonoEdicionDinamico = L.polygon(puntosEdicion, {
-        color: colorEdicionElegido,
-        fillColor: colorEdicionElegido,
-        fillOpacity: 0.4,
-        weight: 2.5,
-        dashArray: '4, 4'
-    }).addTo(mapa);
-
-    dibujarCercosEnMapa();
-
+function _crearVerticesArrastrablesEdicion() {
     puntosEdicion.forEach((punto, indice) => {
         let ultimaPosicionValida = [...punto];
 
@@ -480,7 +457,33 @@ function iniciarModificacionCerco(cerco, elementoTarjeta) {
 
         marcadoresEdicion.push(marcador);
     });
+}
 
+function iniciarModificacionCerco(cerco, elementoTarjeta) {
+    limpiarEdicion();
+    cercoEnEdicion = cerco;
+    colorEdicionElegido = cerco.properties.color || '#2ecc71';
+
+    document.querySelectorAll('#contenedor-lista-modificar .tarjeta-elemento').forEach(t => {
+        t.classList.remove('border-campo-500', 'bg-campo-50', 'ring-1', 'ring-campo-500');
+    });
+    elementoTarjeta.classList.add('border-campo-500', 'bg-campo-50', 'ring-1', 'ring-campo-500');
+
+    _mostrarFormularioEdicionCerco(cerco);
+
+    const anilloCoordenadas = cerco.geometry.coordinates[0].slice(0, -1);
+    puntosEdicion = anilloCoordenadas.map(coord => [coord[1], coord[0]]);
+
+    poligonoEdicionDinamico = L.polygon(puntosEdicion, {
+        color: colorEdicionElegido,
+        fillColor: colorEdicionElegido,
+        fillOpacity: 0.4,
+        weight: 2.5,
+        dashArray: '4, 4'
+    }).addTo(mapa);
+
+    dibujarCercosEnMapa();
+    _crearVerticesArrastrablesEdicion();
     mapa.fitBounds(poligonoEdicionDinamico.getBounds(), { padding: [60, 60] });
 }
 
@@ -614,11 +617,10 @@ function poblarListaEliminar() {
         const tarjeta = document.createElement('div');
         const estaSeleccionado = cercoParaEliminar && cercoParaEliminar.properties.id === cerco.properties.id;
 
-        tarjeta.className = `tarjeta-elemento flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all text-sm ${
-            estaSeleccionado
+        tarjeta.className = `tarjeta-elemento flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all text-sm ${estaSeleccionado
                 ? 'border-red-500 bg-red-50 ring-1 ring-red-500'
                 : 'border-slate-200 hover:bg-red-50/50 hover:border-red-400'
-        }`;
+            }`;
 
         tarjeta.innerHTML = `
             <div class="flex items-center gap-3">
